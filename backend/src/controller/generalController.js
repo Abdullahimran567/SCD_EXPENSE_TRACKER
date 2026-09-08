@@ -6,4 +6,4 @@ const sayHI = async (req, res) => {
 	}
 };
 
-module.exports = { sayHI };
+export { sayHI };

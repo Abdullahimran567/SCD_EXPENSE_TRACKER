@@ -1,7 +1,7 @@
-const express = require("express");
-
+import express from "express";
+import generalrouter from "./generalRoutes.js";
 const router = express.Router();
 
-router.use("/", require("./generalRoutes"));
+router.use("/", generalrouter);
 
-module.exports = router;
+export default router;

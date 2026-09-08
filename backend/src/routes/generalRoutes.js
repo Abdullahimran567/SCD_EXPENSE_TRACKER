@@ -1,8 +1,8 @@
-const express = require("express");
-const { sayHI } = require("../controller/generalController");
-const { route } = require(".");
-const router = express.Router();
+import express from "express";
+import { sayHI } from "../controller/generalController.js";
 
-router.get("/", sayHI);
+const generalrouter = express.Router();
 
-module.exports = router;
+generalrouter.get("/", sayHI);
+
+export default generalrouter;
