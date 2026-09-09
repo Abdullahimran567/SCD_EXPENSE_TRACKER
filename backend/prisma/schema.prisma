@@ -13,5 +13,48 @@ datasource db {
 }
 
 model User {
-  id Int @id @default(autoincrement())
+  id           Int           @id @default(autoincrement())
+  name         String
+  email        String        @unique
+  password     String
+  created_at   DateTime      @default(now())
+  transactions Transaction[]
+  budget       Budget[]
+}
+
+enum CategoryType {
+  INCOME
+  EXPENSE
+}
+
+model Category {
+  id           Int           @id @default(autoincrement())
+  name         String        @unique
+  type         CategoryType
+  transactions Transaction[]
+}
+
+model Transaction {
+  id          Int          @id @default(autoincrement())
+  amount      Decimal      @db.Decimal(10, 2)
+  type        CategoryType
+  title       String
+  description String?
+  date        DateTime
+  created_at  DateTime     @default(now())
+  category    Category     @relation(fields: [category_id], references: [id])
+  category_id Int
+  user        User         @relation(fields: [userId], references: [id])
+  userId      Int
+}
+
+model Budget {
+  id     Int     @id @default(autoincrement())
+  amount Decimal @db.Decimal(10, 2)
+  month  Int
+  year   Int
+  user   User    @relation(fields: [userId], references: [id])
+  userId Int
+
+  @@unique([userId, month, year])
 }
