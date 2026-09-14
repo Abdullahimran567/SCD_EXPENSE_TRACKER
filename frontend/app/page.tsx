@@ -117,9 +117,6 @@ export default function LandingPage() {
 						<a href="#features" className="hover:text-emerald-600 transition">
 							Features
 						</a>
-						<a href="#demo" className="hover:text-emerald-600 transition">
-							Live Demo
-						</a>
 					</nav>
 
 					{/* Auth Action Buttons */}
