@@ -4,9 +4,16 @@ import { prisma } from "../config/db.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "scd_expense_tracker_secret_key_2026";
 
+const getCookieOptions = () => ({
+	httpOnly: true,
+	secure: process.env.NODE_ENV === "production",
+	sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+	maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+});
+
 /**
  * @route   POST /auth/signup (or /signup)
- * @desc    Register a new user
+ * @desc    Register a new user & set HTTP-only cookie
  * @access  Public
  */
 export const signup = async (req, res) => {
@@ -62,10 +69,12 @@ export const signup = async (req, res) => {
 			{ expiresIn: "7d" }
 		);
 
+		// Set HTTP-Only Cookie
+		res.cookie("token", token, getCookieOptions());
+
 		return res.status(201).json({
 			success: true,
 			message: "User registered successfully",
-			token,
 			user: {
 				id: user.id,
 				name: user.name,
@@ -85,7 +94,7 @@ export const signup = async (req, res) => {
 
 /**
  * @route   POST /auth/login (or /login)
- * @desc    Authenticate user & get token
+ * @desc    Authenticate user & set HTTP-only cookie
  * @access  Public
  */
 export const login = async (req, res) => {
@@ -130,10 +139,12 @@ export const login = async (req, res) => {
 			{ expiresIn: "7d" }
 		);
 
+		// Set HTTP-Only Cookie
+		res.cookie("token", token, getCookieOptions());
+
 		return res.status(200).json({
 			success: true,
 			message: "Login successful",
-			token,
 			user: {
 				id: user.id,
 				name: user.name,
@@ -146,6 +157,61 @@ export const login = async (req, res) => {
 		return res.status(500).json({
 			success: false,
 			message: "Server error during login.",
+			error: error.message,
+		});
+	}
+};
+
+/**
+ * @route   POST /auth/logout (or /logout)
+ * @desc    Clear HTTP-only auth cookie
+ * @access  Public
+ */
+export const logout = async (req, res) => {
+	res.clearCookie("token", {
+		httpOnly: true,
+		secure: process.env.NODE_ENV === "production",
+		sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+	});
+
+	return res.status(200).json({
+		success: true,
+		message: "Logged out successfully",
+	});
+};
+
+/**
+ * @route   GET /auth/me (or /me)
+ * @desc    Get logged in user profile from cookie token
+ * @access  Private
+ */
+export const getMe = async (req, res) => {
+	try {
+		const user = await prisma.user.findUnique({
+			where: { id: req.user.id },
+			select: {
+				id: true,
+				name: true,
+				email: true,
+				created_at: true,
+			},
+		});
+
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: "User not found",
+			});
+		}
+
+		return res.status(200).json({
+			success: true,
+			user,
+		});
+	} catch (error) {
+		return res.status(500).json({
+			success: false,
+			message: "Server error",
 			error: error.message,
 		});
 	}

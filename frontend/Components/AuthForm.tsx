@@ -61,6 +61,7 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        credentials: "include",
       });
 
       const data = await res.json();
@@ -69,11 +70,8 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
         throw new Error(data.message || "Failed to log in. Please check your credentials.");
       }
 
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        if (data.user) {
-          localStorage.setItem("user", JSON.stringify(data.user));
-        }
+      if (data.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
       }
 
       setSuccessMessage("Login successful! Redirecting...");
@@ -109,6 +107,7 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
+        credentials: "include",
       });
 
       const data = await res.json();
@@ -117,11 +116,8 @@ export default function AuthForm({ initialMode = "login" }: AuthFormProps) {
         throw new Error(data.message || "Failed to register account.");
       }
 
-      if (data.token) {
-        localStorage.setItem("token", data.token);
-        if (data.user) {
-          localStorage.setItem("user", JSON.stringify(data.user));
-        }
+      if (data.user) {
+        localStorage.setItem("user", JSON.stringify(data.user));
       }
 
       setSuccessMessage("Account created successfully! Redirecting...");
