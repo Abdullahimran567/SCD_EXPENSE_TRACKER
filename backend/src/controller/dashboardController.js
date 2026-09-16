@@ -9,6 +9,12 @@ export const getDashboardSummary = async (req, res) => {
 	try {
 		const userId = req.user.id;
 
+		// Fetch current user details from DB
+		const user = await prisma.user.findUnique({
+			where: { id: userId },
+			select: { id: true, name: true, email: true },
+		});
+
 		const now = new Date();
 		const currentYear = now.getFullYear();
 		const currentMonth = now.getMonth(); // 0-11
@@ -195,7 +201,9 @@ export const getDashboardSummary = async (req, res) => {
 
 		return res.status(200).json({
 			success: true,
+			user: user || null,
 			summary: {
+				user: user || null,
 				totalBalance: totalBalance > 0 ? totalBalance : 12450.00,
 				growthPercentage,
 				monthlyIncome: monthlyIncome > 0 ? monthlyIncome : 6200,

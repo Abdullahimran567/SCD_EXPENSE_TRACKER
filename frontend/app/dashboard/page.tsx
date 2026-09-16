@@ -15,6 +15,8 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
+  const [user, setUser] = useState<any>(null);
+
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
   const fetchDashboardSummary = async () => {
@@ -28,6 +30,8 @@ export default function DashboardPage() {
       const data = await res.json();
       if (res.ok && data.success) {
         setSummary(data.summary);
+        if (data.user) setUser(data.user);
+        else if (data.summary?.user) setUser(data.summary.user);
       }
     } catch (err) {
       console.error("Failed to load dashboard summary:", err);
@@ -43,7 +47,7 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-600 selection:text-white">
       {/* Dashboard Navbar */}
-      <Navbar onAddTransaction={() => setIsModalOpen(true)} />
+      <Navbar onAddTransaction={() => setIsModalOpen(true)} user={user} />
 
       {/* Main Dashboard Layout Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
