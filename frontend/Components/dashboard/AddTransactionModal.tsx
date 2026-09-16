@@ -1,28 +1,62 @@
 "use client";
 
 import { useState } from "react";
-import { X, Plus, DollarSign } from "lucide-react";
+import { X, Plus, DollarSign, AlertCircle } from "lucide-react";
 
 interface AddTransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onTransactionAdded?: () => void;
 }
 
-export default function AddTransactionModal({ isOpen, onClose }: AddTransactionModalProps) {
+export default function AddTransactionModal({ isOpen, onClose, onTransactionAdded }: AddTransactionModalProps) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("Food");
   const [type, setType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Pure frontend behavior
-    alert(`Transaction "${title}" of $${amount} added successfully! (Frontend demo)`);
-    setTitle("");
-    setAmount("");
-    onClose();
+    setError("");
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${backendUrl}/transactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          amount: parseFloat(amount),
+          type,
+          categoryName: category,
+        }),
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || "Failed to add transaction.");
+      }
+
+      setTitle("");
+      setAmount("");
+      if (onTransactionAdded) {
+        onTransactionAdded();
+      }
+      onClose();
+    } catch (err: any) {
+      setError(err.message || "Failed to add transaction");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -42,6 +76,13 @@ export default function AddTransactionModal({ isOpen, onClose }: AddTransactionM
           <p className="text-xs text-slate-400">Enter transaction details below.</p>
         </div>
 
+        {error && (
+          <div className="mb-4 p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
         {/* Modal Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -51,7 +92,7 @@ export default function AddTransactionModal({ isOpen, onClose }: AddTransactionM
             <input
               type="text"
               required
-              placeholder="e.g. Starbucks Coffee, Freelance Invoice"
+              placeholder="e.g. Starbucks Coffee, Freelance Payment"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:border-indigo-600"
@@ -123,10 +164,17 @@ export default function AddTransactionModal({ isOpen, onClose }: AddTransactionM
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition"
+              disabled={loading}
+              className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition disabled:opacity-50"
             >
-              <Plus className="w-4 h-4" />
-              <span>Save</span>
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  <span>Save</span>
+                </>
+              )}
             </button>
           </div>
         </form>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/Components/dashboard/Navbar";
 import TotalBalanceCard from "@/Components/dashboard/TotalBalanceCard";
 import MonthlyBudgetCard from "@/Components/dashboard/MonthlyBudgetCard";
@@ -12,6 +12,33 @@ import AddTransactionModal from "@/Components/dashboard/AddTransactionModal";
 
 export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [summary, setSummary] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+  const fetchDashboardSummary = async () => {
+    try {
+      const res = await fetch(`${backendUrl}/dashboard/summary`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSummary(data.summary);
+      }
+    } catch (err) {
+      console.error("Failed to load dashboard summary:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardSummary();
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-600 selection:text-white">
@@ -27,22 +54,28 @@ export default function DashboardPage() {
           {/* Left Column (60-65% width on large screens) */}
           <div className="lg:col-span-7 space-y-6">
             {/* Card 1: Total Balance */}
-            <TotalBalanceCard />
+            <TotalBalanceCard
+              totalBalance={summary?.totalBalance}
+              growthPercentage={summary?.growthPercentage}
+              monthlyIncome={summary?.monthlyIncome}
+              monthlyExpenses={summary?.monthlyExpenses}
+              savings={summary?.savings}
+            />
 
             {/* Card 2: Monthly Budget */}
-            <MonthlyBudgetCard />
+            <MonthlyBudgetCard budget={summary?.budget} />
 
             {/* Card 3: Spending by Category */}
-            <SpendingByCategoryCard />
+            <SpendingByCategoryCard categories={summary?.categoryBreakdown} />
           </div>
 
           {/* Right Column (35-40% width on large screens) */}
           <div className="lg:col-span-5 space-y-6">
             {/* Card 4: Income vs. Expense Bar Chart */}
-            <IncomeVsExpenseCard />
+            <IncomeVsExpenseCard data={summary?.incomeVsExpense} />
 
             {/* Card 5: Recent Transactions List */}
-            <RecentTransactionsCard />
+            <RecentTransactionsCard transactions={summary?.recentTransactions} />
           </div>
         </div>
 
@@ -57,6 +90,7 @@ export default function DashboardPage() {
       <AddTransactionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onTransactionAdded={fetchDashboardSummary}
       />
     </div>
   );

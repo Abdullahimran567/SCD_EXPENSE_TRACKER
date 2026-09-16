@@ -1,13 +1,33 @@
 "use client";
 
-export default function SpendingByCategoryCard() {
-  const categories = [
-    { name: "Housing", amount: 1680, color: "bg-indigo-600", stroke: "#6366f1", percent: 40 },
-    { name: "Food", amount: 840, color: "bg-emerald-500", stroke: "#10b981", percent: 20 },
-    { name: "Transport", amount: 630, color: "bg-amber-500", stroke: "#f59e0b", percent: 15 },
-    { name: "Entertainment", amount: 420, color: "bg-rose-500", stroke: "#ef4444", percent: 10 },
-    { name: "Others", amount: 630, color: "bg-slate-300", stroke: "#cbd5e1", percent: 15 },
+interface CategoryItem {
+  name: string;
+  amount: number;
+  percentage: number;
+  color?: string;
+}
+
+interface SpendingByCategoryCardProps {
+  categories?: CategoryItem[];
+}
+
+export default function SpendingByCategoryCard({ categories }: SpendingByCategoryCardProps) {
+  const defaultCategories: CategoryItem[] = [
+    { name: "Housing", amount: 1680, percentage: 40, color: "bg-indigo-600" },
+    { name: "Food", amount: 840, percentage: 20, color: "bg-emerald-500" },
+    { name: "Transport", amount: 630, percentage: 15, color: "bg-amber-500" },
+    { name: "Entertainment", amount: 420, percentage: 10, color: "bg-rose-500" },
+    { name: "Others", amount: 630, percentage: 15, color: "bg-slate-300" },
   ];
+
+  const list = categories && categories.length > 0 ? categories : defaultCategories;
+  const totalAmount = list.reduce((acc, c) => acc + c.amount, 0);
+
+  const getBgColor = (idx: number, customColor?: string) => {
+    if (customColor && customColor.startsWith("bg-")) return customColor;
+    const colors = ["bg-indigo-600", "bg-emerald-500", "bg-amber-500", "bg-rose-500", "bg-slate-300"];
+    return colors[idx % colors.length];
+  };
 
   return (
     <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
@@ -34,8 +54,6 @@ export default function SpendingByCategoryCard() {
                 stroke="#f1f5f9"
                 strokeWidth="4.5"
               />
-              {/* Segments calculation */}
-              {/* Housing: 40% -> strokeDasharray="40 60", strokeDashoffset="0" */}
               <circle
                 cx="18"
                 cy="18"
@@ -47,7 +65,6 @@ export default function SpendingByCategoryCard() {
                 strokeDashoffset="0"
                 className="transition-all duration-500"
               />
-              {/* Food: 20% -> offset = -35.18 */}
               <circle
                 cx="18"
                 cy="18"
@@ -59,7 +76,6 @@ export default function SpendingByCategoryCard() {
                 strokeDashoffset="-35.18"
                 className="transition-all duration-500"
               />
-              {/* Transport: 15% -> offset = -52.77 */}
               <circle
                 cx="18"
                 cy="18"
@@ -71,7 +87,6 @@ export default function SpendingByCategoryCard() {
                 strokeDashoffset="-52.77"
                 className="transition-all duration-500"
               />
-              {/* Entertainment: 10% -> offset = -65.96 */}
               <circle
                 cx="18"
                 cy="18"
@@ -83,7 +98,6 @@ export default function SpendingByCategoryCard() {
                 strokeDashoffset="-65.96"
                 className="transition-all duration-500"
               />
-              {/* Others: 15% -> offset = -74.75 */}
               <circle
                 cx="18"
                 cy="18"
@@ -103,7 +117,7 @@ export default function SpendingByCategoryCard() {
                 TOTAL
               </span>
               <span className="text-lg font-extrabold text-slate-900 mt-0.5">
-                $4,200
+                ${totalAmount.toLocaleString()}
               </span>
             </div>
           </div>
@@ -111,10 +125,10 @@ export default function SpendingByCategoryCard() {
 
         {/* Legend Grid */}
         <div className="sm:col-span-7 grid grid-cols-2 gap-x-4 gap-y-2.5 text-xs">
-          {categories.map((cat) => (
+          {list.map((cat, idx) => (
             <div key={cat.name} className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${cat.color} shrink-0`} />
-              <span className="text-slate-500 font-medium">{cat.name}</span>
+              <span className={`w-2.5 h-2.5 rounded-full ${getBgColor(idx, cat.color)} shrink-0`} />
+              <span className="text-slate-500 font-medium truncate">{cat.name}</span>
               <span className="text-slate-900 font-bold ml-auto">${cat.amount.toLocaleString()}</span>
             </div>
           ))}
