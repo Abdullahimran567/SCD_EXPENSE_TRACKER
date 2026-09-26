@@ -1,6 +1,6 @@
 "use client";
 
-import { ShoppingCart, ArrowDownLeft, Music, Zap, Coffee, Tag, Receipt } from "lucide-react";
+import { ShoppingCart, ArrowDownLeft, Music, Zap, Coffee, Tag, Receipt, Edit2, Trash2 } from "lucide-react";
 
 export interface TransactionItem {
   id: string | number;
@@ -17,9 +17,18 @@ export interface TransactionItem {
 interface RecentTransactionsCardProps {
   transactions?: TransactionItem[];
   onAddTransaction?: () => void;
+  onEditTransaction?: (tx: TransactionItem) => void;
+  onDeleteTransaction?: (id: string | number) => void;
+  onViewAll?: () => void;
 }
 
-export default function RecentTransactionsCard({ transactions = [], onAddTransaction }: RecentTransactionsCardProps) {
+export default function RecentTransactionsCard({
+  transactions = [],
+  onAddTransaction,
+  onEditTransaction,
+  onDeleteTransaction,
+  onViewAll,
+}: RecentTransactionsCardProps) {
   const list = transactions;
 
   const getCategoryIcon = (categoryName?: string, type?: string) => {
@@ -42,8 +51,11 @@ export default function RecentTransactionsCard({ transactions = [], onAddTransac
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-slate-900">Recent Transactions</h3>
-        {list.length > 0 && (
-          <button className="text-xs font-medium text-indigo-600 hover:underline">
+        {onViewAll && (
+          <button
+            onClick={onViewAll}
+            className="text-xs font-medium text-indigo-600 hover:underline"
+          >
             View all
           </button>
         )}
@@ -70,7 +82,7 @@ export default function RecentTransactionsCard({ transactions = [], onAddTransac
         </div>
       ) : (
         /* Transaction List */
-        <div className="space-y-3.5">
+        <div className="space-y-3">
           {list.map((t) => {
             const style = getCategoryIcon(t.category, t.type);
             const IconComponent = t.icon || style.Icon;
@@ -79,7 +91,7 @@ export default function RecentTransactionsCard({ transactions = [], onAddTransac
             const iconColor = t.iconColor || style.color;
 
             return (
-              <div key={t.id} className="flex items-center justify-between group">
+              <div key={t.id} className="flex items-center justify-between group p-1.5 hover:bg-slate-50 rounded-xl transition">
                 <div className="flex items-center gap-3">
                   {/* Icon Container */}
                   <div className={`p-2.5 rounded-xl ${iconBg} ${iconColor} shrink-0 transition group-hover:scale-105`}>
@@ -97,13 +109,37 @@ export default function RecentTransactionsCard({ transactions = [], onAddTransac
                   </div>
                 </div>
 
-                {/* Amount */}
-                <div
-                  className={`text-xs sm:text-sm font-bold ${
-                    isIncome ? "text-emerald-500" : "text-rose-500"
-                  }`}
-                >
-                  {isIncome ? `+$${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `-$${Math.abs(t.amount).toFixed(2)}`}
+                <div className="flex items-center gap-2 sm:gap-3">
+                  {/* Amount */}
+                  <div
+                    className={`text-xs sm:text-sm font-bold ${
+                      isIncome ? "text-emerald-500" : "text-rose-500"
+                    }`}
+                  >
+                    {isIncome ? `+$${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `-$${Math.abs(t.amount).toFixed(2)}`}
+                  </div>
+
+                  {/* Actions (Pencil & Trash icons) */}
+                  <div className="flex items-center gap-0.5 opacity-80 sm:opacity-0 group-hover:opacity-100 transition">
+                    {onEditTransaction && (
+                      <button
+                        onClick={() => onEditTransaction(t)}
+                        title="Edit transaction"
+                        className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-md transition"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {onDeleteTransaction && (
+                      <button
+                        onClick={() => onDeleteTransaction(t.id)}
+                        title="Delete transaction"
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-white rounded-md transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

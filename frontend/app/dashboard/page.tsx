@@ -10,10 +10,16 @@ import RecentTransactionsCard from "@/Components/dashboard/RecentTransactionsCar
 import SavingsGoalsCard from "@/Components/dashboard/SavingsGoalsCard";
 import AddTransactionModal from "@/Components/dashboard/AddTransactionModal";
 import AddCategoryModal from "@/Components/dashboard/AddCategoryModal";
+import EditTransactionModal from "@/Components/dashboard/EditTransactionModal";
+import AllTransactionsModal from "@/Components/dashboard/AllTransactionsModal";
 
 export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAllTransactionsModalOpen, setIsAllTransactionsModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<any>(null);
+
   const [summary, setSummary] = useState<any>(null);
   const [categories, setCategories] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
@@ -69,6 +75,32 @@ export default function DashboardPage() {
     fetchDashboardSummary();
   };
 
+  const handleOpenEdit = (tx: any) => {
+    setEditingTransaction(tx);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteTransaction = async (id: string | number) => {
+    if (!confirm("Are you sure you want to delete this transaction?")) return;
+
+    try {
+      const res = await fetch(`${backendUrl}/transactions/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        fetchDashboardSummary();
+      } else {
+        alert(data.message || "Failed to delete transaction");
+      }
+    } catch (err) {
+      console.error("Failed to delete transaction:", err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-600 selection:text-white">
       {/* Dashboard Navbar */}
@@ -114,6 +146,9 @@ export default function DashboardPage() {
             <RecentTransactionsCard
               transactions={summary?.recentTransactions}
               onAddTransaction={() => setIsModalOpen(true)}
+              onEditTransaction={handleOpenEdit}
+              onDeleteTransaction={handleDeleteTransaction}
+              onViewAll={() => setIsAllTransactionsModalOpen(true)}
             />
           </div>
         </div>
@@ -132,6 +167,26 @@ export default function DashboardPage() {
         onTransactionAdded={fetchDashboardSummary}
         onOpenAddCategory={() => setIsCategoryModalOpen(true)}
         categoriesList={categories}
+      />
+
+      {/* Edit Transaction Modal */}
+      <EditTransactionModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingTransaction(null);
+        }}
+        transaction={editingTransaction}
+        onTransactionUpdated={fetchDashboardSummary}
+        categoriesList={categories}
+      />
+
+      {/* All Transactions Modal */}
+      <AllTransactionsModal
+        isOpen={isAllTransactionsModalOpen}
+        onClose={() => setIsAllTransactionsModalOpen(false)}
+        onEditTransaction={handleOpenEdit}
+        onTransactionDeleted={fetchDashboardSummary}
       />
 
       {/* Add Category Modal */}
