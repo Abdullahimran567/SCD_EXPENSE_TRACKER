@@ -1,59 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Wallet, Plus } from "lucide-react";
 
-export interface User {
-  name?: string;
-  email?: string;
-}
-
 interface NavbarProps {
   onAddTransaction?: () => void;
-  user?: User | null;
+  user?: {
+    name?: string;
+    email?: string;
+  } | null;
 }
 
-export default function Navbar({ onAddTransaction, user: propUser }: NavbarProps) {
-  const [userData, setUserData] = useState<User | null>(propUser || null);
-
-  useEffect(() => {
-    if (propUser) {
-      setUserData(propUser);
-      return;
-    }
-
-    // Load from localStorage for immediate display if available
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        setUserData(JSON.parse(storedUser));
-      } catch (e) {
-        console.error("Failed to parse user from localStorage", e);
-      }
-    }
-
-    // Fetch user info from database via /auth/me
-    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
-    fetch(`${backendUrl}/auth/me`, {
-      method: "GET",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data?.success && data?.user) {
-          setUserData(data.user);
-          localStorage.setItem("user", JSON.stringify(data.user));
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch user profile:", err);
-      });
-  }, [propUser]);
-
-  const userName = userData?.name || "User";
-  const userEmail = userData?.email || "";
+export default function Navbar({ onAddTransaction, user }: NavbarProps) {
+  const userName = user?.name || "User";
+  const userEmail = user?.email || "";
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
@@ -72,12 +32,8 @@ export default function Navbar({ onAddTransaction, user: propUser }: NavbarProps
         <div className="flex items-center gap-4">
           {/* User info */}
           <div className="hidden sm:block text-right">
-            <div className="text-sm font-semibold text-slate-900">
-              Welcome, {userName}
-            </div>
-            {userEmail && (
-              <div className="text-xs text-slate-400">{userEmail}</div>
-            )}
+            <div className="text-sm font-semibold text-slate-900">Welcome, {userName}</div>
+            {userEmail && <div className="text-xs text-slate-400">{userEmail}</div>}
           </div>
 
           {/* Add Transaction Button */}
@@ -88,6 +44,11 @@ export default function Navbar({ onAddTransaction, user: propUser }: NavbarProps
             <Plus className="w-4 h-4" />
             <span>Add Transaction</span>
           </button>
+
+          {/* User Avatar */}
+          <div className="w-9 h-9 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">
+            {userName.charAt(0).toUpperCase()}
+          </div>
         </div>
       </div>
     </header>

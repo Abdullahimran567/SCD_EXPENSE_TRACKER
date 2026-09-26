@@ -1,6 +1,6 @@
 "use client";
 
-import { ShoppingCart, ArrowDownLeft, Music, Zap, Coffee, DollarSign, Tag } from "lucide-react";
+import { ShoppingCart, ArrowDownLeft, Music, Zap, Coffee, Tag, Receipt } from "lucide-react";
 
 export interface TransactionItem {
   id: string | number;
@@ -16,68 +16,11 @@ export interface TransactionItem {
 
 interface RecentTransactionsCardProps {
   transactions?: TransactionItem[];
+  onAddTransaction?: () => void;
 }
 
-export default function RecentTransactionsCard({ transactions }: RecentTransactionsCardProps) {
-  const defaultTransactions: TransactionItem[] = [
-    {
-      id: 1,
-      title: "Grocery Store",
-      category: "Food & Dining",
-      date: "May 28, 2026",
-      amount: -120.50,
-      type: "EXPENSE",
-      iconBg: "bg-orange-50 border border-orange-100",
-      iconColor: "text-orange-500",
-      icon: ShoppingCart,
-    },
-    {
-      id: 2,
-      title: "Salary Deposit",
-      category: "Income",
-      date: "May 25, 2026",
-      amount: 3200.00,
-      type: "INCOME",
-      iconBg: "bg-emerald-50 border border-emerald-100",
-      iconColor: "text-emerald-500",
-      icon: ArrowDownLeft,
-    },
-    {
-      id: 3,
-      title: "Spotify Premium",
-      category: "Entertainment",
-      date: "May 24, 2026",
-      amount: -11.99,
-      type: "EXPENSE",
-      iconBg: "bg-rose-50 border border-rose-100",
-      iconColor: "text-rose-500",
-      icon: Music,
-    },
-    {
-      id: 4,
-      title: "Electricity Bill",
-      category: "Bills",
-      date: "May 22, 2026",
-      amount: -145.00,
-      type: "EXPENSE",
-      iconBg: "bg-indigo-50 border border-indigo-100",
-      iconColor: "text-indigo-500",
-      icon: Zap,
-    },
-    {
-      id: 5,
-      title: "Starbucks Coffee",
-      category: "Food & Dining",
-      date: "May 21, 2026",
-      amount: -6.50,
-      type: "EXPENSE",
-      iconBg: "bg-amber-50 border border-amber-100",
-      iconColor: "text-amber-500",
-      icon: Coffee,
-    },
-  ];
-
-  const list = transactions && transactions.length > 0 ? transactions : defaultTransactions;
+export default function RecentTransactionsCard({ transactions = [], onAddTransaction }: RecentTransactionsCardProps) {
+  const list = transactions;
 
   const getCategoryIcon = (categoryName?: string, type?: string) => {
     if (type === "INCOME") return { Icon: ArrowDownLeft, bg: "bg-emerald-50 border border-emerald-100", color: "text-emerald-500" };
@@ -99,51 +42,74 @@ export default function RecentTransactionsCard({ transactions }: RecentTransacti
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-base font-semibold text-slate-900">Recent Transactions</h3>
-        <button className="text-xs font-medium text-indigo-600 hover:underline">
-          View all
-        </button>
+        {list.length > 0 && (
+          <button className="text-xs font-medium text-indigo-600 hover:underline">
+            View all
+          </button>
+        )}
       </div>
 
-      {/* Transaction List */}
-      <div className="space-y-3.5">
-        {list.map((t) => {
-          const style = getCategoryIcon(t.category, t.type);
-          const IconComponent = t.icon || style.Icon;
-          const isIncome = t.type === "INCOME" || t.amount > 0;
-          const iconBg = t.iconBg || style.bg;
-          const iconColor = t.iconColor || style.color;
+      {list.length === 0 ? (
+        /* Empty State */
+        <div className="py-8 flex flex-col items-center justify-center text-center">
+          <div className="w-12 h-12 rounded-full bg-slate-50 border border-slate-200 text-slate-400 flex items-center justify-center mb-2.5">
+            <Receipt className="w-6 h-6" />
+          </div>
+          <p className="text-sm font-semibold text-slate-800">No transactions recorded yet</p>
+          <p className="text-xs text-slate-400 mt-1 max-w-xs">
+            Start logging your daily income and expense transactions to populate your feed.
+          </p>
+          {onAddTransaction && (
+            <button
+              onClick={onAddTransaction}
+              className="mt-4 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition shadow-xs"
+            >
+              + Add Transaction
+            </button>
+          )}
+        </div>
+      ) : (
+        /* Transaction List */
+        <div className="space-y-3.5">
+          {list.map((t) => {
+            const style = getCategoryIcon(t.category, t.type);
+            const IconComponent = t.icon || style.Icon;
+            const isIncome = t.type === "INCOME" || t.amount > 0;
+            const iconBg = t.iconBg || style.bg;
+            const iconColor = t.iconColor || style.color;
 
-          return (
-            <div key={t.id} className="flex items-center justify-between group">
-              <div className="flex items-center gap-3">
-                {/* Icon Container */}
-                <div className={`p-2.5 rounded-xl ${iconBg} ${iconColor} shrink-0 transition group-hover:scale-105`}>
-                  <IconComponent className="w-4 h-4" />
+            return (
+              <div key={t.id} className="flex items-center justify-between group">
+                <div className="flex items-center gap-3">
+                  {/* Icon Container */}
+                  <div className={`p-2.5 rounded-xl ${iconBg} ${iconColor} shrink-0 transition group-hover:scale-105`}>
+                    <IconComponent className="w-4 h-4" />
+                  </div>
+
+                  {/* Details */}
+                  <div>
+                    <div className="text-xs sm:text-sm font-semibold text-slate-900">
+                      {t.title}
+                    </div>
+                    <div className="text-[11px] text-slate-400">
+                      {t.date}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Details */}
-                <div>
-                  <div className="text-xs sm:text-sm font-semibold text-slate-900">
-                    {t.title}
-                  </div>
-                  <div className="text-[11px] text-slate-400">
-                    {t.date}
-                  </div>
+                {/* Amount */}
+                <div
+                  className={`text-xs sm:text-sm font-bold ${
+                    isIncome ? "text-emerald-500" : "text-rose-500"
+                  }`}
+                >
+                  {isIncome ? `+$${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `-$${Math.abs(t.amount).toFixed(2)}`}
                 </div>
               </div>
-
-              {/* Amount */}
-              <div
-                className={`text-xs sm:text-sm font-bold ${
-                  isIncome ? "text-emerald-500" : "text-rose-500"
-                }`}
-              >
-                {isIncome ? `+$${Math.abs(t.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : `-$${Math.abs(t.amount).toFixed(2)}`}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

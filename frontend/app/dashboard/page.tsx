@@ -13,9 +13,8 @@ import AddTransactionModal from "@/Components/dashboard/AddTransactionModal";
 export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [summary, setSummary] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
   const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
@@ -76,10 +75,16 @@ export default function DashboardPage() {
           {/* Right Column (35-40% width on large screens) */}
           <div className="lg:col-span-5 space-y-6">
             {/* Card 4: Income vs. Expense Bar Chart */}
-            <IncomeVsExpenseCard data={summary?.incomeVsExpense} />
+            <IncomeVsExpenseCard
+              data={summary?.incomeVsExpense}
+              hasChartData={summary?.hasChartData}
+            />
 
             {/* Card 5: Recent Transactions List */}
-            <RecentTransactionsCard transactions={summary?.recentTransactions} />
+            <RecentTransactionsCard
+              transactions={summary?.recentTransactions}
+              onAddTransaction={() => setIsModalOpen(true)}
+            />
           </div>
         </div>
 

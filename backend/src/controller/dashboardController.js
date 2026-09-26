@@ -2,7 +2,7 @@ import { prisma } from "../config/db.js";
 
 /**
  * @route   GET /dashboard/summary
- * @desc    Get aggregated dashboard summary data for logged in user
+ * @desc    Get real aggregated dashboard data for logged-in user (strictly from DB)
  * @access  Private
  */
 export const getDashboardSummary = async (req, res) => {
@@ -72,7 +72,7 @@ export const getDashboardSummary = async (req, res) => {
 
 		const monthlySavings = Math.max(0, monthlyIncome - monthlyExpenses);
 
-		// Previous Month Expenses for Growth Calculation
+		// Previous Month Income for Growth Calculation
 		const prevMonthTx = await prisma.transaction.findMany({
 			where: {
 				userId,
@@ -88,9 +88,11 @@ export const getDashboardSummary = async (req, res) => {
 			if (t.type === "INCOME") prevMonthlyIncome += Number(t.amount);
 		});
 
-		let growthPercentage = 8.2; // default fallback if no previous data
+		let growthPercentage = 0;
 		if (prevMonthlyIncome > 0) {
 			growthPercentage = parseFloat((((monthlyIncome - prevMonthlyIncome) / prevMonthlyIncome) * 100).toFixed(1));
+		} else if (monthlyIncome > 0) {
+			growthPercentage = 100;
 		}
 
 		// 3. Monthly Budget
@@ -104,17 +106,17 @@ export const getDashboardSummary = async (req, res) => {
 			},
 		});
 
-		const budgetLimit = userBudget ? Number(userBudget.amount) : 5000;
+		const budgetLimit = userBudget ? Number(userBudget.amount) : 0;
 		const budgetSpent = monthlyExpenses;
-		const percentageUsed = Math.min(100, Math.round((budgetSpent / budgetLimit) * 100));
-		const remainingBudget = Math.max(0, budgetLimit - budgetSpent);
+		const percentageUsed = budgetLimit > 0 ? Math.min(100, Math.round((budgetSpent / budgetLimit) * 100)) : 0;
+		const remainingBudget = budgetLimit > 0 ? Math.max(0, budgetLimit - budgetSpent) : 0;
 
 		// 4. Spending by Category (Current Month Expenses)
 		const categoryTotalsMap = {};
 		currentMonthTx
 			.filter((t) => t.type === "EXPENSE")
 			.forEach((t) => {
-				const catName = t.category?.name || "Others";
+				const catName = t.category?.name || "General";
 				categoryTotalsMap[catName] = (categoryTotalsMap[catName] || 0) + Number(t.amount);
 			});
 
@@ -123,10 +125,12 @@ export const getDashboardSummary = async (req, res) => {
 			Food: "#10b981",
 			Transport: "#f59e0b",
 			Entertainment: "#ef4444",
+			Bills: "#3b82f6",
 			Others: "#cbd5e1",
+			General: "#94a3b8",
 		};
 
-		let categoryBreakdown = Object.keys(categoryTotalsMap).map((catName) => {
+		const categoryBreakdown = Object.keys(categoryTotalsMap).map((catName) => {
 			const amt = categoryTotalsMap[catName];
 			const pct = monthlyExpenses > 0 ? Math.round((amt / monthlyExpenses) * 100) : 0;
 			return {
@@ -137,20 +141,10 @@ export const getDashboardSummary = async (req, res) => {
 			};
 		});
 
-		// Fallback mock breakdown if no transactions recorded yet
-		if (categoryBreakdown.length === 0) {
-			categoryBreakdown = [
-				{ name: "Housing", amount: 1680, percentage: 40, color: "#6366f1" },
-				{ name: "Food", amount: 840, percentage: 20, color: "#10b981" },
-				{ name: "Transport", amount: 630, percentage: 15, color: "#f59e0b" },
-				{ name: "Entertainment", amount: 420, percentage: 10, color: "#ef4444" },
-				{ name: "Others", amount: 630, percentage: 15, color: "#cbd5e1" },
-			];
-		}
-
 		// 5. Income vs. Expense (Last 6 Months)
 		const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 		const sixMonthsData = [];
+		let hasChartData = false;
 
 		for (let i = 5; i >= 0; i--) {
 			const d = new Date(currentYear, currentMonth - i, 1);
@@ -175,10 +169,14 @@ export const getDashboardSummary = async (req, res) => {
 				else mExp += Number(t.amount);
 			});
 
+			if (mInc > 0 || mExp > 0) {
+				hasChartData = true;
+			}
+
 			sixMonthsData.push({
 				month: monthNames[mIndex],
-				income: mInc > 0 ? mInc : 5800 + (mIndex * 100),
-				expense: mExp > 0 ? mExp : 3800 + (mIndex * 80),
+				income: mInc,
+				expense: mExp,
 			});
 		}
 
@@ -204,22 +202,25 @@ export const getDashboardSummary = async (req, res) => {
 			user: user || null,
 			summary: {
 				user: user || null,
-				totalBalance: totalBalance > 0 ? totalBalance : 12450.00,
+				totalBalance,
 				growthPercentage,
-				monthlyIncome: monthlyIncome > 0 ? monthlyIncome : 6200,
-				monthlyExpenses: monthlyExpenses > 0 ? monthlyExpenses : 4200,
-				savings: monthlySavings > 0 ? monthlySavings : 2000,
+				monthlyIncome,
+				monthlyExpenses,
+				savings: monthlySavings,
 				budget: {
 					limit: budgetLimit,
-					spent: budgetSpent > 0 ? budgetSpent : 4200,
-					percentageUsed: budgetSpent > 0 ? percentageUsed : 84,
-					remaining: budgetSpent > 0 ? remainingBudget : 800,
+					spent: budgetSpent,
+					percentageUsed,
+					remaining: remainingBudget,
+					isSet: Boolean(userBudget),
 					monthName: monthNames[currentMonth],
 					year: currentYear,
 				},
 				categoryBreakdown,
 				incomeVsExpense: sixMonthsData,
+				hasChartData,
 				recentTransactions: formattedRecentTx,
+				hasTransactions: allTransactions.length > 0,
 			},
 		});
 	} catch (error) {

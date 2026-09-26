@@ -11,12 +11,14 @@ interface TotalBalanceCardProps {
 }
 
 export default function TotalBalanceCard({
-  totalBalance = 12450.00,
-  growthPercentage = 8.2,
-  monthlyIncome = 6200,
-  monthlyExpenses = 4200,
-  savings = 2000,
+  totalBalance = 0,
+  growthPercentage = 0,
+  monthlyIncome = 0,
+  monthlyExpenses = 0,
+  savings = 0,
 }: TotalBalanceCardProps) {
+  const isNegative = totalBalance < 0;
+
   return (
     <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-xs flex flex-col justify-between">
       {/* Top Header */}
@@ -27,8 +29,9 @@ export default function TotalBalanceCard({
         
         {/* Main Amount & Growth Badge */}
         <div className="flex items-baseline gap-3">
-          <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-            ${totalBalance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <span className={`text-3xl sm:text-4xl font-extrabold tracking-tight ${isNegative ? "text-rose-600" : "text-slate-900"}`}>
+            ${Math.abs(totalBalance).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {isNegative && <span className="text-xs text-rose-500 font-semibold ml-1">(Deficit)</span>}
           </span>
           <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-xs font-semibold border border-emerald-200/60">
             <TrendingUp className="w-3 h-3" />
