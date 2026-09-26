@@ -9,10 +9,13 @@ import IncomeVsExpenseCard from "@/Components/dashboard/IncomeVsExpenseCard";
 import RecentTransactionsCard from "@/Components/dashboard/RecentTransactionsCard";
 import SavingsGoalsCard from "@/Components/dashboard/SavingsGoalsCard";
 import AddTransactionModal from "@/Components/dashboard/AddTransactionModal";
+import AddCategoryModal from "@/Components/dashboard/AddCategoryModal";
 
 export default function DashboardPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [summary, setSummary] = useState<any>(null);
+  const [categories, setCategories] = useState<any[]>([]);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,14 +42,41 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${backendUrl}/categories`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.categories)) {
+        setCategories(data.categories);
+      }
+    } catch (err) {
+      console.error("Failed to fetch categories:", err);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardSummary();
+    fetchCategories();
   }, []);
+
+  const handleCategoryAdded = () => {
+    fetchCategories();
+    fetchDashboardSummary();
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans selection:bg-indigo-600 selection:text-white">
       {/* Dashboard Navbar */}
-      <Navbar onAddTransaction={() => setIsModalOpen(true)} user={user} />
+      <Navbar
+        onAddTransaction={() => setIsModalOpen(true)}
+        onAddCategory={() => setIsCategoryModalOpen(true)}
+        user={user}
+      />
 
       {/* Main Dashboard Layout Container */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -100,6 +130,15 @@ export default function DashboardPage() {
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onTransactionAdded={fetchDashboardSummary}
+        onOpenAddCategory={() => setIsCategoryModalOpen(true)}
+        categoriesList={categories}
+      />
+
+      {/* Add Category Modal */}
+      <AddCategoryModal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        onCategoryAdded={handleCategoryAdded}
       />
     </div>
   );

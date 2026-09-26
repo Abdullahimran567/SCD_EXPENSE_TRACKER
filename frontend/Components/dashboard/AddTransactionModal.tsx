@@ -1,26 +1,80 @@
 "use client";
 
-import { useState } from "react";
-import { X, Plus, DollarSign, AlertCircle } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Plus, DollarSign, AlertCircle, Tag } from "lucide-react";
 
 interface AddTransactionModalProps {
   isOpen: boolean;
   onClose: () => void;
   onTransactionAdded?: () => void;
+  onOpenAddCategory?: () => void;
+  categoriesList?: Array<{ id: string | number; name: string; type: string }>;
 }
 
-export default function AddTransactionModal({ isOpen, onClose, onTransactionAdded }: AddTransactionModalProps) {
+export default function AddTransactionModal({
+  isOpen,
+  onClose,
+  onTransactionAdded,
+  onOpenAddCategory,
+  categoriesList = [],
+}: AddTransactionModalProps) {
   const [title, setTitle] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("Food");
   const [type, setType] = useState<"EXPENSE" | "INCOME">("EXPENSE");
+  const [fetchedCategories, setFetchedCategories] = useState<Array<{ name: string; type: string }>>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
 
+  // Default system categories if backend API hasn't loaded yet
+  const defaultCategories = [
+    { name: "Housing", type: "EXPENSE" },
+    { name: "Food", type: "EXPENSE" },
+    { name: "Transport", type: "EXPENSE" },
+    { name: "Entertainment", type: "EXPENSE" },
+    { name: "Bills", type: "EXPENSE" },
+    { name: "Income", type: "INCOME" },
+    { name: "Others", type: "EXPENSE" },
+  ];
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${backendUrl}/categories`, {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success && Array.isArray(data.categories)) {
+        setFetchedCategories(data.categories);
+        if (data.categories.length > 0 && !category) {
+          setCategory(data.categories[0].name);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch categories:", err);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchCategories();
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const categoriesToDisplay = categoriesList.length > 0 
+    ? categoriesList 
+    : (fetchedCategories.length > 0 ? fetchedCategories : defaultCategories);
+
+  const filteredCategories = categoriesToDisplay.filter(
+    (c) => c.type === type || c.name === "Others" || c.name === "General"
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +89,7 @@ export default function AddTransactionModal({ isOpen, onClose, onTransactionAdde
           title,
           amount: parseFloat(amount),
           type,
-          categoryName: category,
+          categoryName: category || "General",
         }),
         credentials: "include",
       });
@@ -126,7 +180,13 @@ export default function AddTransactionModal({ isOpen, onClose, onTransactionAdde
               </label>
               <select
                 value={type}
-                onChange={(e) => setType(e.target.value as "EXPENSE" | "INCOME")}
+                onChange={(e) => {
+                  const newType = e.target.value as "EXPENSE" | "INCOME";
+                  setType(newType);
+                  // Update default category selection based on type
+                  if (newType === "INCOME") setCategory("Income");
+                  else setCategory("Food");
+                }}
                 className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:border-indigo-600"
               >
                 <option value="EXPENSE">Expense (-)</option>
@@ -136,21 +196,32 @@ export default function AddTransactionModal({ isOpen, onClose, onTransactionAdde
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1">
-              Category
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                Category
+              </label>
+              {onOpenAddCategory && (
+                <button
+                  type="button"
+                  onClick={onOpenAddCategory}
+                  className="text-xs text-indigo-600 font-semibold hover:underline flex items-center gap-1"
+                >
+                  <Tag className="w-3 h-3" />
+                  <span>+ New Category</span>
+                </button>
+              )}
+            </div>
+            
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:border-indigo-600"
+              className="w-full px-3.5 py-2 bg-white border border-slate-300 rounded-xl text-slate-900 text-sm focus:outline-none focus:border-indigo-600 capitalize"
             >
-              <option value="Housing">Housing</option>
-              <option value="Food">Food & Dining</option>
-              <option value="Transport">Transportation</option>
-              <option value="Entertainment">Entertainment</option>
-              <option value="Bills">Bills & Utilities</option>
-              <option value="Income">Income</option>
-              <option value="Others">Others</option>
+              {filteredCategories.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           </div>
 
