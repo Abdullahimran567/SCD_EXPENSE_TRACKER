@@ -7,7 +7,6 @@ import MonthlyBudgetCard from "@/Components/dashboard/MonthlyBudgetCard";
 import SpendingByCategoryCard from "@/Components/dashboard/SpendingByCategoryCard";
 import IncomeVsExpenseCard from "@/Components/dashboard/IncomeVsExpenseCard";
 import RecentTransactionsCard from "@/Components/dashboard/RecentTransactionsCard";
-import SavingsGoalsCard from "@/Components/dashboard/SavingsGoalsCard";
 import AddTransactionModal from "@/Components/dashboard/AddTransactionModal";
 import AddCategoryModal from "@/Components/dashboard/AddCategoryModal";
 import EditTransactionModal from "@/Components/dashboard/EditTransactionModal";
@@ -151,12 +150,6 @@ export default function DashboardPage() {
               onViewAll={() => setIsAllTransactionsModalOpen(true)}
             />
           </div>
-        </div>
-
-        {/* Bottom Full-Width Section (Card 6) */}
-        <div className="w-full">
-          {/* Card 6: Savings Goals Empty State */}
-          <SavingsGoalsCard onCreateGoal={() => setIsModalOpen(true)} />
         </div>
       </main>
 
