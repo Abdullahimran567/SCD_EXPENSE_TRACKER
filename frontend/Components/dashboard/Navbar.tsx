@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Wallet, Plus, Tag } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Wallet, Plus, Tag, LogOut } from "lucide-react";
 
 interface NavbarProps {
   onAddTransaction?: () => void;
@@ -13,8 +14,22 @@ interface NavbarProps {
 }
 
 export default function Navbar({ onAddTransaction, onAddCategory, user }: NavbarProps) {
+  const router = useRouter();
   const userName = user?.name || "User";
   const userEmail = user?.email || "";
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${backendUrl}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Even if the request fails, clear local state and redirect
+    }
+    router.push("/");
+  };
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
@@ -29,7 +44,7 @@ export default function Navbar({ onAddTransaction, onAddCategory, user }: Navbar
           </span>
         </Link>
 
-        {/* Right Section: User details & Actions */}
+        {/* Right Section */}
         <div className="flex items-center gap-2 sm:gap-3">
           {/* User info */}
           <div className="hidden md:block text-right mr-2">
@@ -61,6 +76,15 @@ export default function Navbar({ onAddTransaction, onAddCategory, user }: Navbar
           <div className="w-9 h-9 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">
             {userName.charAt(0).toUpperCase()}
           </div>
+
+          {/* Logout Button */}
+          <button
+            onClick={handleLogout}
+            title="Sign out"
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </div>
     </header>
