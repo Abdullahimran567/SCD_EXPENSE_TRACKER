@@ -1,63 +1,33 @@
-import { prisma } from "../config/db.js";
-
-const DEFAULT_SYSTEM_CATEGORIES = [
-	{ name: "Housing", type: "EXPENSE" },
-	{ name: "Food", type: "EXPENSE" },
-	{ name: "Transport", type: "EXPENSE" },
-	{ name: "Entertainment", type: "EXPENSE" },
-	{ name: "Bills", type: "EXPENSE" },
-	{ name: "Income", type: "INCOME" },
-	{ name: "Others", type: "EXPENSE" },
-];
+import { categoryService } from "../services/categoryService.js";
+import { AppError } from "../utils/errors.js";
 
 export const createCategory = async (req, res) => {
 	try {
 		const userId = req.user.id;
 		const { name, type } = req.body;
 
-		if (!name || !name.trim()) {
-			return res.status(400).json({
-				success: false,
-				message: "Please provide a valid category name.",
-			});
-		}
+		const result = await categoryService.createCategory({ userId, name, type });
 
-		const cleanName = name.trim();
-		const validTypes = ["EXPENSE", "INCOME"];
-		const categoryType =
-			type && validTypes.includes(type.toUpperCase())
-				? type.toUpperCase()
-				: "EXPENSE";
-
-		let existingCategory = await prisma.category.findFirst({
-			where: {
-				name: cleanName,
-				user_id: userId,
-			},
-		});
-
-		if (existingCategory) {
+		if (result.isExisting) {
 			return res.status(200).json({
 				success: true,
 				message: "Category already exists",
-				category: existingCategory,
+				category: result.category,
 			});
 		}
-
-		const category = await prisma.category.create({
-			data: {
-				name: cleanName,
-				type: categoryType,
-				user_id: userId,
-			},
-		});
 
 		return res.status(201).json({
 			success: true,
 			message: "Category created successfully",
-			category,
+			category: result.category,
 		});
 	} catch (error) {
+		if (error instanceof AppError) {
+			return res.status(error.statusCode).json({
+				success: false,
+				message: error.message,
+			});
+		}
 		console.error("Error in createCategory:", error);
 		return res.status(500).json({
 			success: false,
@@ -70,35 +40,19 @@ export const createCategory = async (req, res) => {
 export const getCategories = async (req, res) => {
 	try {
 		const userId = req.user.id;
-
-		const userCategories = await prisma.category.findMany({
-			where: { user_id: userId },
-			orderBy: { name: "asc" },
-		});
-
-		const userCategoryNames = new Set(
-			userCategories.map((c) => c.name.toLowerCase()),
-		);
-
-		const combinedCategories = [...userCategories];
-
-		DEFAULT_SYSTEM_CATEGORIES.forEach((def, index) => {
-			if (!userCategoryNames.has(def.name.toLowerCase())) {
-				combinedCategories.push({
-					id: `def-${index}`,
-					name: def.name,
-					type: def.type,
-					user_id: userId,
-					isDefault: true,
-				});
-			}
-		});
+		const categories = await categoryService.getCategories(userId);
 
 		return res.status(200).json({
 			success: true,
-			categories: combinedCategories,
+			categories,
 		});
 	} catch (error) {
+		if (error instanceof AppError) {
+			return res.status(error.statusCode).json({
+				success: false,
+				message: error.message,
+			});
+		}
 		console.error("Error in getCategories:", error);
 		return res.status(500).json({
 			success: false,

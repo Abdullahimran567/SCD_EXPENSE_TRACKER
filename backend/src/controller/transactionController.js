@@ -1,63 +1,19 @@
-import { prisma } from "../config/db.js";
+import { transactionService } from "../services/transactionService.js";
+import { AppError } from "../utils/errors.js";
 
 export const createTransaction = async (req, res) => {
 	try {
 		const userId = req.user.id;
 		const { title, amount, type, categoryName, description, date } = req.body;
 
-		if (!title || amount === undefined || !type) {
-			return res.status(400).json({
-				success: false,
-				message: "Please provide title, amount, and type (INCOME or EXPENSE).",
-			});
-		}
-
-		const parsedAmount = parseFloat(amount);
-		if (isNaN(parsedAmount) || parsedAmount <= 0) {
-			return res.status(400).json({
-				success: false,
-				message: "Amount must be a positive number.",
-			});
-		}
-
-		const validTypes = ["INCOME", "EXPENSE"];
-		const upperType = type.toUpperCase();
-		if (!validTypes.includes(upperType)) {
-			return res.status(400).json({
-				success: false,
-				message: "Type must be either INCOME or EXPENSE.",
-			});
-		}
-
-		const nameCategory = (categoryName || "General").trim();
-
-		let category = await prisma.category.findFirst({
-			where: { name: nameCategory },
-		});
-
-		if (!category) {
-			category = await prisma.category.create({
-				data: {
-					name: nameCategory,
-					type: upperType,
-					user_id: userId,
-				},
-			});
-		}
-
-		const transaction = await prisma.transaction.create({
-			data: {
-				title: title.trim(),
-				amount: parsedAmount,
-				type: upperType,
-				description: description || null,
-				date: date ? new Date(date) : new Date(),
-				category_id: category.id,
-				userId: userId,
-			},
-			include: {
-				category: true,
-			},
+		const transaction = await transactionService.createTransaction({
+			userId,
+			title,
+			amount,
+			type,
+			categoryName,
+			description,
+			date,
 		});
 
 		return res.status(201).json({
@@ -66,6 +22,12 @@ export const createTransaction = async (req, res) => {
 			transaction,
 		});
 	} catch (error) {
+		if (error instanceof AppError) {
+			return res.status(error.statusCode).json({
+				success: false,
+				message: error.message,
+			});
+		}
 		console.error("Error creating transaction:", error);
 		return res.status(500).json({
 			success: false,
@@ -78,33 +40,25 @@ export const createTransaction = async (req, res) => {
 export const getTransactions = async (req, res) => {
 	try {
 		const userId = req.user.id;
-		const limit = parseInt(req.query.limit) || 20;
-		const page = parseInt(req.query.page) || 1;
-		const skip = (page - 1) * limit;
+		const { limit, page } = req.query;
 
-		const transactions = await prisma.transaction.findMany({
-			where: { userId },
-			orderBy: { date: "desc" },
-			take: limit,
-			skip: skip,
-			include: {
-				category: true,
-			},
-		});
-
-		const totalCount = await prisma.transaction.count({
-			where: { userId },
+		const result = await transactionService.getTransactions({
+			userId,
+			limit,
+			page,
 		});
 
 		return res.status(200).json({
 			success: true,
-			count: transactions.length,
-			total: totalCount,
-			page,
-			totalPages: Math.ceil(totalCount / limit),
-			transactions,
+			...result,
 		});
 	} catch (error) {
+		if (error instanceof AppError) {
+			return res.status(error.statusCode).json({
+				success: false,
+				message: error.message,
+			});
+		}
 		console.error("Error fetching transactions:", error);
 		return res.status(500).json({
 			success: false,
@@ -117,80 +71,12 @@ export const getTransactions = async (req, res) => {
 export const updateTransaction = async (req, res) => {
 	try {
 		const userId = req.user.id;
-		const transactionId = parseInt(req.params.id);
+		const transactionId = req.params.id;
 
-		if (isNaN(transactionId)) {
-			return res.status(400).json({
-				success: false,
-				message: "Invalid transaction ID",
-			});
-		}
-
-		// Find transaction and verify ownership
-		const existingTransaction = await prisma.transaction.findUnique({
-			where: { id: transactionId },
-		});
-
-		if (!existingTransaction || existingTransaction.userId !== userId) {
-			return res.status(404).json({
-				success: false,
-				message: "Transaction not found",
-			});
-		}
-
-		const { title, amount, type, categoryName, description, date } = req.body;
-
-		const updateData = {};
-
-		if (title) updateData.title = title.trim();
-		if (amount !== undefined) {
-			const parsedAmount = parseFloat(amount);
-			if (isNaN(parsedAmount) || parsedAmount <= 0) {
-				return res.status(400).json({
-					success: false,
-					message: "Amount must be a positive number",
-				});
-			}
-			updateData.amount = parsedAmount;
-		}
-
-		if (type) {
-			const upperType = type.toUpperCase();
-			if (["INCOME", "EXPENSE"].includes(upperType)) {
-				updateData.type = upperType;
-			}
-		}
-
-		if (description !== undefined) {
-			updateData.description = description || null;
-		}
-
-		if (date) {
-			updateData.date = new Date(date);
-		}
-
-		if (categoryName) {
-			const nameCategory = categoryName.trim();
-			let category = await prisma.category.findFirst({
-				where: { name: nameCategory },
-			});
-
-			if (!category) {
-				category = await prisma.category.create({
-					data: {
-						name: nameCategory,
-						type: updateData.type || existingTransaction.type,
-						user_id: userId,
-					},
-				});
-			}
-			updateData.category_id = category.id;
-		}
-
-		const updatedTransaction = await prisma.transaction.update({
-			where: { id: transactionId },
-			data: updateData,
-			include: { category: true },
+		const updatedTransaction = await transactionService.updateTransaction({
+			userId,
+			transactionId,
+			data: req.body,
 		});
 
 		return res.status(200).json({
@@ -199,6 +85,12 @@ export const updateTransaction = async (req, res) => {
 			transaction: updatedTransaction,
 		});
 	} catch (error) {
+		if (error instanceof AppError) {
+			return res.status(error.statusCode).json({
+				success: false,
+				message: error.message,
+			});
+		}
 		console.error("Error updating transaction:", error);
 		return res.status(500).json({
 			success: false,
@@ -211,29 +103,11 @@ export const updateTransaction = async (req, res) => {
 export const deleteTransaction = async (req, res) => {
 	try {
 		const userId = req.user.id;
-		const transactionId = parseInt(req.params.id);
+		const transactionId = req.params.id;
 
-		if (isNaN(transactionId)) {
-			return res.status(400).json({
-				success: false,
-				message: "Invalid transaction ID",
-			});
-		}
-
-		// Find transaction and verify ownership
-		const existingTransaction = await prisma.transaction.findUnique({
-			where: { id: transactionId },
-		});
-
-		if (!existingTransaction || existingTransaction.userId !== userId) {
-			return res.status(404).json({
-				success: false,
-				message: "Transaction not found",
-			});
-		}
-
-		await prisma.transaction.delete({
-			where: { id: transactionId },
+		await transactionService.deleteTransaction({
+			userId,
+			transactionId,
 		});
 
 		return res.status(200).json({
@@ -241,6 +115,12 @@ export const deleteTransaction = async (req, res) => {
 			message: "Transaction deleted successfully",
 		});
 	} catch (error) {
+		if (error instanceof AppError) {
+			return res.status(error.statusCode).json({
+				success: false,
+				message: error.message,
+			});
+		}
 		console.error("Error deleting transaction:", error);
 		return res.status(500).json({
 			success: false,
