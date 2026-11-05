@@ -1,38 +1,24 @@
-import { userRepository } from "../repositories/userRepository.js";
-import { transactionRepository } from "../repositories/transactionRepository.js";
-import { budgetRepository } from "../repositories/budgetRepository.js";
+import { userRepository as defaultUserRepo } from "../repositories/userRepository.js";
+import { transactionRepository as defaultTxRepo } from "../repositories/transactionRepository.js";
+import { budgetRepository as defaultBudgetRepo } from "../repositories/budgetRepository.js";
+import { summaryCalculator } from "../utils/summaryCalculator.js";
+import { budgetCalculator } from "../utils/budgetCalculator.js";
+import { monthlyTrend } from "../utils/monthlyTrend.js";
+import { CATEGORY_COLORS, MONTH_NAMES } from "../constants/index.js";
 
-const CATEGORY_COLORS = {
-	Housing: "#6366f1",
-	Food: "#10b981",
-	Transport: "#f59e0b",
-	Entertainment: "#ef4444",
-	Bills: "#3b82f6",
-	Others: "#cbd5e1",
-	General: "#94a3b8",
-};
+export class DashboardService {
+	constructor({
+		userRepository = defaultUserRepo,
+		transactionRepository = defaultTxRepo,
+		budgetRepository = defaultBudgetRepo,
+	} = {}) {
+		this.userRepository = userRepository;
+		this.transactionRepository = transactionRepository;
+		this.budgetRepository = budgetRepository;
+	}
 
-const MONTH_NAMES = [
-	"Jan",
-	"Feb",
-	"Mar",
-	"Apr",
-	"May",
-	"Jun",
-	"Jul",
-	"Aug",
-	"Sep",
-	"Oct",
-	"Nov",
-	"Dec",
-];
-
-export const dashboardService = {
 	async getDashboardSummary(userId) {
-		const userRecord = await userRepository.findById(userId);
-		const user = userRecord
-			? { id: userRecord.id, name: userRecord.name, email: userRecord.email }
-			: null;
+		const user = await this._getUserInfo(userId);
 
 		const now = new Date();
 		const currentYear = now.getFullYear();
@@ -60,157 +46,131 @@ export const dashboardService = {
 			999,
 		);
 
-		const allTransactions = await transactionRepository.findMany({
+		const allTransactions = await this.transactionRepository.findMany({
 			where: { userId },
 		});
+		const { balance: totalBalance } =
+			summaryCalculator.calculateTotals(allTransactions);
 
-		let totalIncomeAllTime = 0;
-		let totalExpenseAllTime = 0;
-
-		allTransactions.forEach((t) => {
-			const numAmt = Number(t.amount);
-			if (t.type === "INCOME") {
-				totalIncomeAllTime += numAmt;
-			} else {
-				totalExpenseAllTime += numAmt;
-			}
-		});
-
-		const totalBalance = totalIncomeAllTime - totalExpenseAllTime;
-
-		const currentMonthTx = await transactionRepository.findMany({
+		const currentMonthTx = await this.transactionRepository.findMany({
 			where: {
 				userId,
-				date: {
-					gte: currentMonthStart,
-					lte: currentMonthEnd,
-				},
+				date: { gte: currentMonthStart, lte: currentMonthEnd },
 			},
 			includeCategory: true,
 		});
+		const {
+			totalIncome: monthlyIncome,
+			totalExpense: monthlyExpenses,
+			savings: monthlySavings,
+		} = summaryCalculator.calculateTotals(currentMonthTx);
 
-		let monthlyIncome = 0;
-		let monthlyExpenses = 0;
-
-		currentMonthTx.forEach((t) => {
-			const numAmt = Number(t.amount);
-			if (t.type === "INCOME") {
-				monthlyIncome += numAmt;
-			} else {
-				monthlyExpenses += numAmt;
-			}
-		});
-
-		const monthlySavings = Math.max(0, monthlyIncome - monthlyExpenses);
-
-		const prevMonthTx = await transactionRepository.findMany({
+		const prevMonthTx = await this.transactionRepository.findMany({
 			where: {
 				userId,
-				date: {
-					gte: prevMonthStart,
-					lte: prevMonthEnd,
-				},
+				date: { gte: prevMonthStart, lte: prevMonthEnd },
 			},
 		});
+		const { totalIncome: prevMonthlyIncome } =
+			summaryCalculator.calculateTotals(prevMonthTx);
 
-		let prevMonthlyIncome = 0;
-		prevMonthTx.forEach((t) => {
-			if (t.type === "INCOME") prevMonthlyIncome += Number(t.amount);
-		});
+		const growthPercentage = summaryCalculator.calculateGrowth(
+			monthlyIncome,
+			prevMonthlyIncome,
+		);
 
-		let growthPercentage = 0;
-		if (prevMonthlyIncome > 0) {
-			growthPercentage = parseFloat(
-				(
-					((monthlyIncome - prevMonthlyIncome) / prevMonthlyIncome) *
-					100
-				).toFixed(1),
-			);
-		} else if (monthlyIncome > 0) {
-			growthPercentage = 100;
-		}
-
-		const userBudget = await budgetRepository.findByUserMonthYear(
+		const userBudget = await this.budgetRepository.findByUserMonthYear(
 			userId,
 			currentMonth + 1,
 			currentYear,
 		);
-
 		const budgetLimit = userBudget ? Number(userBudget.amount) : 0;
-		const budgetSpent = monthlyExpenses;
-		const percentageUsed =
-			budgetLimit > 0
-				? Math.min(100, Math.round((budgetSpent / budgetLimit) * 100))
-				: 0;
-		const remainingBudget =
-			budgetLimit > 0 ? Math.max(0, budgetLimit - budgetSpent) : 0;
+		const budgetProgress = budgetCalculator.calculateProgress(
+			budgetLimit,
+			monthlyExpenses,
+		);
 
-		const categoryTotalsMap = {};
-		currentMonthTx
-			.filter((t) => t.type === "EXPENSE")
-			.forEach((t) => {
-				const catName = t.category?.name || "General";
-				categoryTotalsMap[catName] =
-					(categoryTotalsMap[catName] || 0) + Number(t.amount);
-			});
+		const categoryBreakdown = summaryCalculator.calculateCategoryBreakdown(
+			currentMonthTx,
+			monthlyExpenses,
+			CATEGORY_COLORS,
+		);
 
-		const categoryBreakdown = Object.keys(categoryTotalsMap).map((catName) => {
-			const amt = categoryTotalsMap[catName];
-			const pct =
-				monthlyExpenses > 0 ? Math.round((amt / monthlyExpenses) * 100) : 0;
-			return {
-				name: catName,
-				amount: amt,
-				percentage: pct,
-				color: CATEGORY_COLORS[catName] || "#8b5cf6",
-			};
-		});
+		const { sixMonthsData, hasChartData } = await this._buildSixMonthChart(
+			userId,
+			now,
+		);
 
-		const sixMonthsData = [];
-		let hasChartData = false;
+		const recentTransactions = await this._getRecentTransactions(userId);
 
-		for (let i = 5; i >= 0; i--) {
-			const d = new Date(currentYear, currentMonth - i, 1);
-			const mIndex = d.getMonth();
-			const yNum = d.getFullYear();
+		return {
+			user,
+			totalBalance,
+			growthPercentage,
+			monthlyIncome,
+			monthlyExpenses,
+			savings: monthlySavings,
+			budget: {
+				limit: budgetProgress.limit,
+				spent: budgetProgress.spent,
+				percentageUsed: budgetProgress.percentageUsed,
+				remaining: budgetProgress.remaining,
+				isSet: Boolean(userBudget),
+				monthName: MONTH_NAMES[currentMonth],
+				year: currentYear,
+			},
+			categoryBreakdown,
+			incomeVsExpense: sixMonthsData,
+			hasChartData,
+			recentTransactions,
+			hasTransactions: allTransactions.length > 0,
+		};
+	}
 
-			const mStart = new Date(yNum, mIndex, 1);
-			const mEnd = new Date(yNum, mIndex + 1, 0, 23, 59, 59, 999);
+	async _getUserInfo(userId) {
+		const userRecord = await this.userRepository.findById(userId);
+		if (!userRecord) return null;
+		return {
+			id: userRecord.id,
+			name: userRecord.name,
+			email: userRecord.email,
+		};
+	}
 
-			const mTx = await transactionRepository.findMany({
-				where: {
-					userId,
-					date: { gte: mStart, lte: mEnd },
-				},
-			});
+	async _buildSixMonthChart(userId, referenceDate) {
+		const buckets = monthlyTrend.buildRollingSixMonths(referenceDate);
 
-			let mInc = 0;
-			let mExp = 0;
+		const transactionsByBucket = await Promise.all(
+			buckets.map((b) =>
+				this.transactionRepository.findMany({
+					where: {
+						userId,
+						date: { gte: b.startDate, lte: b.endDate },
+					},
+				}),
+			),
+		);
 
-			mTx.forEach((t) => {
-				if (t.type === "INCOME") mInc += Number(t.amount);
-				else mExp += Number(t.amount);
-			});
+		const { chartData, hasChartData } = monthlyTrend.aggregateBuckets(
+			buckets,
+			transactionsByBucket,
+		);
 
-			if (mInc > 0 || mExp > 0) {
-				hasChartData = true;
-			}
+		return {
+			sixMonthsData: chartData,
+			hasChartData,
+		};
+	}
 
-			sixMonthsData.push({
-				month: MONTH_NAMES[mIndex],
-				income: mInc,
-				expense: mExp,
-			});
-		}
-
-		const recentTx = await transactionRepository.findMany({
+	async _getRecentTransactions(userId) {
+		const recentTx = await this.transactionRepository.findMany({
 			where: { userId },
 			orderBy: { date: "desc" },
 			take: 5,
 			includeCategory: true,
 		});
 
-		const formattedRecentTx = recentTx.map((t) => ({
+		return recentTx.map((t) => ({
 			id: t.id,
 			title: t.title,
 			category: t.category?.name || "General",
@@ -224,28 +184,7 @@ export const dashboardService = {
 			amount: t.type === "INCOME" ? Number(t.amount) : -Number(t.amount),
 			type: t.type,
 		}));
+	}
+}
 
-		return {
-			user: user || null,
-			totalBalance,
-			growthPercentage,
-			monthlyIncome,
-			monthlyExpenses,
-			savings: monthlySavings,
-			budget: {
-				limit: budgetLimit,
-				spent: budgetSpent,
-				percentageUsed,
-				remaining: remainingBudget,
-				isSet: Boolean(userBudget),
-				monthName: MONTH_NAMES[currentMonth],
-				year: currentYear,
-			},
-			categoryBreakdown,
-			incomeVsExpense: sixMonthsData,
-			hasChartData,
-			recentTransactions: formattedRecentTx,
-			hasTransactions: allTransactions.length > 0,
-		};
-	},
-};
+export const dashboardService = new DashboardService();

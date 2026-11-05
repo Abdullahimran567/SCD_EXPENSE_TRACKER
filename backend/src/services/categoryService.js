@@ -1,4 +1,4 @@
-import { categoryRepository } from "../repositories/categoryRepository.js";
+import { categoryRepository as defaultCatRepo } from "../repositories/categoryRepository.js";
 import { ValidationError } from "../utils/errors.js";
 
 const DEFAULT_SYSTEM_CATEGORIES = [
@@ -11,7 +11,11 @@ const DEFAULT_SYSTEM_CATEGORIES = [
 	{ name: "Others", type: "EXPENSE" },
 ];
 
-export const categoryService = {
+export class CategoryService {
+	constructor({ categoryRepository = defaultCatRepo } = {}) {
+		this.categoryRepository = categoryRepository;
+	}
+
 	async createCategory({ userId, name, type }) {
 		if (!name || !name.trim()) {
 			throw new ValidationError("Please provide a valid category name.");
@@ -24,10 +28,8 @@ export const categoryService = {
 				? type.toUpperCase()
 				: "EXPENSE";
 
-		let existingCategory = await categoryRepository.findByNameAndUserId(
-			cleanName,
-			userId,
-		);
+		const existingCategory =
+			await this.categoryRepository.findByNameAndUserId(cleanName, userId);
 
 		if (existingCategory) {
 			return {
@@ -36,7 +38,7 @@ export const categoryService = {
 			};
 		}
 
-		const category = await categoryRepository.create({
+		const category = await this.categoryRepository.create({
 			name: cleanName,
 			type: categoryType,
 			user_id: userId,
@@ -46,10 +48,10 @@ export const categoryService = {
 			isExisting: false,
 			category,
 		};
-	},
+	}
 
 	async getCategories(userId) {
-		const userCategories = await categoryRepository.findByUserId(userId, {
+		const userCategories = await this.categoryRepository.findByUserId(userId, {
 			name: "asc",
 		});
 
@@ -72,5 +74,7 @@ export const categoryService = {
 		});
 
 		return combinedCategories;
-	},
-};
+	}
+}
+
+export const categoryService = new CategoryService();

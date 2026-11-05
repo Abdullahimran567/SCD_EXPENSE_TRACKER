@@ -1,7 +1,12 @@
-import { budgetRepository } from "../repositories/budgetRepository.js";
+import { budgetRepository as defaultBudgetRepo } from "../repositories/budgetRepository.js";
+import { BUDGET_THRESHOLDS } from "../constants/index.js";
 import { ValidationError } from "../utils/errors.js";
 
-export const budgetService = {
+export class BudgetService {
+	constructor({ budgetRepository = defaultBudgetRepo } = {}) {
+		this.budgetRepository = budgetRepository;
+	}
+
 	async setBudget({ userId, amount, month, year }) {
 		const currentYear = new Date().getFullYear();
 		const currentMonth = new Date().getMonth() + 1; // 1-12
@@ -14,15 +19,13 @@ export const budgetService = {
 			throw new ValidationError("Please provide a valid budget amount.");
 		}
 
-		const budget = await budgetRepository.upsert({
+		return this.budgetRepository.upsert({
 			userId,
 			month: targetMonth,
 			year: targetYear,
 			amount: parsedAmount,
 		});
-
-		return budget;
-	},
+	}
 
 	async getBudget({ userId, month, year }) {
 		const currentYear = new Date().getFullYear();
@@ -31,12 +34,21 @@ export const budgetService = {
 		const targetMonth = parseInt(month) || currentMonth;
 		const targetYear = parseInt(year) || currentYear;
 
-		const budget = await budgetRepository.findByUserMonthYear(
+		const budget = await this.budgetRepository.findByUserMonthYear(
 			userId,
 			targetMonth,
 			targetYear,
 		);
 
-		return budget || { amount: 5000, month: targetMonth, year: targetYear, isDefault: true };
-	},
-};
+		return (
+			budget || {
+				amount: BUDGET_THRESHOLDS.DEFAULT_AMOUNT,
+				month: targetMonth,
+				year: targetYear,
+				isDefault: true,
+			}
+		);
+	}
+}
+
+export const budgetService = new BudgetService();

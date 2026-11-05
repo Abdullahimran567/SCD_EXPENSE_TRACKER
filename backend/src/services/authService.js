@@ -1,12 +1,17 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import config from "../config/index.js";
-import { userRepository } from "../repositories/userRepository.js";
+import { userRepository as defaultUserRepo } from "../repositories/userRepository.js";
 import { ValidationError, AuthError, NotFoundError } from "../utils/errors.js";
 
-const JWT_SECRET = config.jwtSecret;
+export class AuthService {
+	constructor({ userRepository = defaultUserRepo } = {}) {
+		this.userRepository = userRepository;
+		this.jwtSecret = config.jwtSecret;
+		this.jwtExpiresIn = config.jwtExpiresIn;
+		this.bcryptRounds = config.bcryptRounds;
+	}
 
-export const authService = {
 	async signup({ name, email, password }) {
 		if (!name || !email || !password) {
 			throw new ValidationError("Please provide name, email, and password.");
@@ -18,24 +23,26 @@ export const authService = {
 
 		const normalizedEmail = email.trim().toLowerCase();
 
-		const existingUser = await userRepository.findByEmail(normalizedEmail);
+		const existingUser = await this.userRepository.findByEmail(normalizedEmail);
 
 		if (existingUser) {
 			throw new ValidationError("User with this email already exists.");
 		}
 
-		const salt = await bcrypt.genSalt(config.bcryptRounds);
+		const salt = await bcrypt.genSalt(this.bcryptRounds);
 		const hashedPassword = await bcrypt.hash(password, salt);
 
-		const user = await userRepository.create({
+		const user = await this.userRepository.create({
 			name: name.trim(),
 			email: normalizedEmail,
 			password: hashedPassword,
 		});
 
-		const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
-			expiresIn: config.jwtExpiresIn,
-		});
+		const token = jwt.sign(
+			{ id: user.id, email: user.email },
+			this.jwtSecret,
+			{ expiresIn: this.jwtExpiresIn },
+		);
 
 		return {
 			token,
@@ -46,7 +53,7 @@ export const authService = {
 				created_at: user.created_at,
 			},
 		};
-	},
+	}
 
 	async login({ email, password }) {
 		if (!email || !password) {
@@ -55,7 +62,7 @@ export const authService = {
 
 		const normalizedEmail = email.trim().toLowerCase();
 
-		const user = await userRepository.findByEmail(normalizedEmail);
+		const user = await this.userRepository.findByEmail(normalizedEmail);
 
 		if (!user) {
 			throw new AuthError("Invalid email or password.");
@@ -66,9 +73,11 @@ export const authService = {
 			throw new AuthError("Invalid email or password.");
 		}
 
-		const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
-			expiresIn: config.jwtExpiresIn,
-		});
+		const token = jwt.sign(
+			{ id: user.id, email: user.email },
+			this.jwtSecret,
+			{ expiresIn: this.jwtExpiresIn },
+		);
 
 		return {
 			token,
@@ -79,10 +88,10 @@ export const authService = {
 				created_at: user.created_at,
 			},
 		};
-	},
+	}
 
 	async getMe(userId) {
-		const user = await userRepository.findById(userId);
+		const user = await this.userRepository.findById(userId);
 
 		if (!user) {
 			throw new NotFoundError("User not found");
@@ -94,5 +103,7 @@ export const authService = {
 			email: user.email,
 			created_at: user.created_at,
 		};
-	},
-};
+	}
+}
+
+export const authService = new AuthService();

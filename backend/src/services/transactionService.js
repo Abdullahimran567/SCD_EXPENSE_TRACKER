@@ -1,40 +1,48 @@
-import { transactionRepository } from "../repositories/transactionRepository.js";
-import { categoryRepository } from "../repositories/categoryRepository.js";
-import { ValidationError, NotFoundError } from "../utils/errors.js";
+import { transactionRepository as defaultTxRepo } from "../repositories/transactionRepository.js";
+import { categoryRepository as defaultCatRepo } from "../repositories/categoryRepository.js";
+import { transactionValidator } from "../utils/transactionValidator.js";
+import { PAGINATION } from "../constants/index.js";
+import { NotFoundError } from "../utils/errors.js";
 
-export const transactionService = {
-	async createTransaction({ userId, title, amount, type, categoryName, description, date }) {
-		if (!title || amount === undefined || !type) {
-			throw new ValidationError(
-				"Please provide title, amount, and type (INCOME or EXPENSE).",
-			);
-		}
+export class TransactionService {
+	constructor({
+		transactionRepository = defaultTxRepo,
+		categoryRepository = defaultCatRepo,
+	} = {}) {
+		this.transactionRepository = transactionRepository;
+		this.categoryRepository = categoryRepository;
+	}
 
-		const parsedAmount = parseFloat(amount);
-		if (isNaN(parsedAmount) || parsedAmount <= 0) {
-			throw new ValidationError("Amount must be a positive number.");
-		}
-
-		const validTypes = ["INCOME", "EXPENSE"];
-		const upperType = type.toUpperCase();
-		if (!validTypes.includes(upperType)) {
-			throw new ValidationError("Type must be either INCOME or EXPENSE.");
-		}
+	async createTransaction({
+		userId,
+		title,
+		amount,
+		type,
+		categoryName,
+		description,
+		date,
+	}) {
+		const { cleanTitle, parsedAmount, upperType } =
+			transactionValidator.validateCreation({
+				title,
+				amount,
+				type,
+			});
 
 		const nameCategory = (categoryName || "General").trim();
 
-		let category = await categoryRepository.findByName(nameCategory);
+		let category = await this.categoryRepository.findByName(nameCategory);
 
 		if (!category) {
-			category = await categoryRepository.create({
+			category = await this.categoryRepository.create({
 				name: nameCategory,
 				type: upperType,
 				user_id: userId,
 			});
 		}
 
-		const transaction = await transactionRepository.create({
-			title: title.trim(),
+		return this.transactionRepository.create({
+			title: cleanTitle,
 			amount: parsedAmount,
 			type: upperType,
 			description: description || null,
@@ -42,16 +50,18 @@ export const transactionService = {
 			category_id: category.id,
 			userId: userId,
 		});
+	}
 
-		return transaction;
-	},
-
-	async getTransactions({ userId, limit = 20, page = 1 }) {
-		const parsedLimit = parseInt(limit) || 20;
-		const parsedPage = parseInt(page) || 1;
+	async getTransactions({
+		userId,
+		limit = PAGINATION.DEFAULT_LIMIT,
+		page = PAGINATION.DEFAULT_PAGE,
+	}) {
+		const parsedLimit = parseInt(limit) || PAGINATION.DEFAULT_LIMIT;
+		const parsedPage = parseInt(page) || PAGINATION.DEFAULT_PAGE;
 		const skip = (parsedPage - 1) * parsedLimit;
 
-		const transactions = await transactionRepository.findMany({
+		const transactions = await this.transactionRepository.findMany({
 			where: { userId },
 			orderBy: { date: "desc" },
 			take: parsedLimit,
@@ -59,7 +69,7 @@ export const transactionService = {
 			includeCategory: true,
 		});
 
-		const totalCount = await transactionRepository.count({
+		const totalCount = await this.transactionRepository.count({
 			where: { userId },
 		});
 
@@ -70,81 +80,68 @@ export const transactionService = {
 			totalPages: Math.ceil(totalCount / parsedLimit),
 			transactions,
 		};
-	},
+	}
 
 	async updateTransaction({ userId, transactionId, data }) {
-		if (!transactionId) {
-			throw new ValidationError("Invalid transaction ID");
-		}
+		const validTxId = transactionValidator.validateTransactionId(transactionId);
 
-		const existingTransaction = await transactionRepository.findById(transactionId);
-
-		if (!existingTransaction || existingTransaction.userId !== userId) {
+		const existing = await this.transactionRepository.findById(validTxId);
+		if (!existing || existing.userId !== userId) {
 			throw new NotFoundError("Transaction not found");
 		}
 
-		const { title, amount, type, categoryName, description, date } = data;
-
 		const updateData = {};
 
-		if (title) updateData.title = title.trim();
-		if (amount !== undefined) {
-			const parsedAmount = parseFloat(amount);
-			if (isNaN(parsedAmount) || parsedAmount <= 0) {
-				throw new ValidationError("Amount must be a positive number");
-			}
-			updateData.amount = parsedAmount;
+		if (data.title) {
+			updateData.title = data.title.trim();
 		}
 
-		if (type) {
-			const upperType = type.toUpperCase();
-			if (["INCOME", "EXPENSE"].includes(upperType)) {
-				updateData.type = upperType;
-			}
+		const validAmount = transactionValidator.validateUpdateAmount(data.amount);
+		if (validAmount !== undefined) {
+			updateData.amount = validAmount;
 		}
 
-		if (description !== undefined) {
-			updateData.description = description || null;
+		const validType = transactionValidator.validateUpdateType(data.type);
+		if (validType !== undefined) {
+			updateData.type = validType;
 		}
 
-		if (date) {
-			updateData.date = new Date(date);
+		if (data.description !== undefined) {
+			updateData.description = data.description || null;
 		}
 
-		if (categoryName) {
-			const nameCategory = categoryName.trim();
-			let category = await categoryRepository.findByName(nameCategory);
+		if (data.date) {
+			updateData.date = new Date(data.date);
+		}
+
+		if (data.categoryName) {
+			const nameCategory = data.categoryName.trim();
+			let category = await this.categoryRepository.findByName(nameCategory);
 
 			if (!category) {
-				category = await categoryRepository.create({
+				category = await this.categoryRepository.create({
 					name: nameCategory,
-					type: updateData.type || existingTransaction.type,
+					type: updateData.type || existing.type,
 					user_id: userId,
 				});
 			}
 			updateData.category_id = category.id;
 		}
 
-		const updatedTransaction = await transactionRepository.update(
-			transactionId,
-			updateData,
-		);
-
-		return updatedTransaction;
-	},
+		return this.transactionRepository.update(validTxId, updateData);
+	}
 
 	async deleteTransaction({ userId, transactionId }) {
-		if (!transactionId) {
-			throw new ValidationError("Invalid transaction ID");
-		}
+		const validTxId = transactionValidator.validateTransactionId(transactionId);
 
-		const existingTransaction = await transactionRepository.findById(transactionId);
-
-		if (!existingTransaction || existingTransaction.userId !== userId) {
+		const existing = await this.transactionRepository.findById(validTxId);
+		if (!existing || existing.userId !== userId) {
 			throw new NotFoundError("Transaction not found");
 		}
 
-		await transactionRepository.delete(transactionId);
+		await this.transactionRepository.delete(validTxId);
 		return true;
-	},
-};
+	}
+}
+
+export const transactionService = new TransactionService();
