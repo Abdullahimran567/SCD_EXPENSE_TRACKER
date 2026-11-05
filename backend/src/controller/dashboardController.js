@@ -1,15 +1,9 @@
 import { prisma } from "../config/db.js";
 
-/**
- * @route   GET /dashboard/summary
- * @desc    Get real aggregated dashboard data for logged-in user (strictly from DB)
- * @access  Private
- */
 export const getDashboardSummary = async (req, res) => {
 	try {
 		const userId = req.user.id;
 
-		// Fetch current user details from DB
 		const user = await prisma.user.findUnique({
 			where: { id: userId },
 			select: { id: true, name: true, email: true },
@@ -17,17 +11,30 @@ export const getDashboardSummary = async (req, res) => {
 
 		const now = new Date();
 		const currentYear = now.getFullYear();
-		const currentMonth = now.getMonth(); // 0-11
+		const currentMonth = now.getMonth();
 
-		// Date boundaries for current month
 		const currentMonthStart = new Date(currentYear, currentMonth, 1);
-		const currentMonthEnd = new Date(currentYear, currentMonth + 1, 0, 23, 59, 59, 999);
+		const currentMonthEnd = new Date(
+			currentYear,
+			currentMonth + 1,
+			0,
+			23,
+			59,
+			59,
+			999,
+		);
 
-		// Date boundaries for previous month
 		const prevMonthStart = new Date(currentYear, currentMonth - 1, 1);
-		const prevMonthEnd = new Date(currentYear, currentMonth, 0, 23, 59, 59, 999);
+		const prevMonthEnd = new Date(
+			currentYear,
+			currentMonth,
+			0,
+			23,
+			59,
+			59,
+			999,
+		);
 
-		// 1. All-time transactions for Total Balance
 		const allTransactions = await prisma.transaction.findMany({
 			where: { userId },
 		});
@@ -46,7 +53,6 @@ export const getDashboardSummary = async (req, res) => {
 
 		const totalBalance = totalIncomeAllTime - totalExpenseAllTime;
 
-		// 2. Current Month Transactions
 		const currentMonthTx = await prisma.transaction.findMany({
 			where: {
 				userId,
@@ -72,7 +78,6 @@ export const getDashboardSummary = async (req, res) => {
 
 		const monthlySavings = Math.max(0, monthlyIncome - monthlyExpenses);
 
-		// Previous Month Income for Growth Calculation
 		const prevMonthTx = await prisma.transaction.findMany({
 			where: {
 				userId,
@@ -90,12 +95,16 @@ export const getDashboardSummary = async (req, res) => {
 
 		let growthPercentage = 0;
 		if (prevMonthlyIncome > 0) {
-			growthPercentage = parseFloat((((monthlyIncome - prevMonthlyIncome) / prevMonthlyIncome) * 100).toFixed(1));
+			growthPercentage = parseFloat(
+				(
+					((monthlyIncome - prevMonthlyIncome) / prevMonthlyIncome) *
+					100
+				).toFixed(1),
+			);
 		} else if (monthlyIncome > 0) {
 			growthPercentage = 100;
 		}
 
-		// 3. Monthly Budget
 		const userBudget = await prisma.budget.findUnique({
 			where: {
 				userId_month_year: {
@@ -108,16 +117,20 @@ export const getDashboardSummary = async (req, res) => {
 
 		const budgetLimit = userBudget ? Number(userBudget.amount) : 0;
 		const budgetSpent = monthlyExpenses;
-		const percentageUsed = budgetLimit > 0 ? Math.min(100, Math.round((budgetSpent / budgetLimit) * 100)) : 0;
-		const remainingBudget = budgetLimit > 0 ? Math.max(0, budgetLimit - budgetSpent) : 0;
+		const percentageUsed =
+			budgetLimit > 0
+				? Math.min(100, Math.round((budgetSpent / budgetLimit) * 100))
+				: 0;
+		const remainingBudget =
+			budgetLimit > 0 ? Math.max(0, budgetLimit - budgetSpent) : 0;
 
-		// 4. Spending by Category (Current Month Expenses)
 		const categoryTotalsMap = {};
 		currentMonthTx
 			.filter((t) => t.type === "EXPENSE")
 			.forEach((t) => {
 				const catName = t.category?.name || "General";
-				categoryTotalsMap[catName] = (categoryTotalsMap[catName] || 0) + Number(t.amount);
+				categoryTotalsMap[catName] =
+					(categoryTotalsMap[catName] || 0) + Number(t.amount);
 			});
 
 		const categoryColors = {
@@ -132,7 +145,8 @@ export const getDashboardSummary = async (req, res) => {
 
 		const categoryBreakdown = Object.keys(categoryTotalsMap).map((catName) => {
 			const amt = categoryTotalsMap[catName];
-			const pct = monthlyExpenses > 0 ? Math.round((amt / monthlyExpenses) * 100) : 0;
+			const pct =
+				monthlyExpenses > 0 ? Math.round((amt / monthlyExpenses) * 100) : 0;
 			return {
 				name: catName,
 				amount: amt,
@@ -141,8 +155,20 @@ export const getDashboardSummary = async (req, res) => {
 			};
 		});
 
-		// 5. Income vs. Expense (Last 6 Months)
-		const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+		const monthNames = [
+			"Jan",
+			"Feb",
+			"Mar",
+			"Apr",
+			"May",
+			"Jun",
+			"Jul",
+			"Aug",
+			"Sep",
+			"Oct",
+			"Nov",
+			"Dec",
+		];
 		const sixMonthsData = [];
 		let hasChartData = false;
 
@@ -180,7 +206,6 @@ export const getDashboardSummary = async (req, res) => {
 			});
 		}
 
-		// 6. Recent Transactions (Top 5)
 		const recentTx = await prisma.transaction.findMany({
 			where: { userId },
 			orderBy: { date: "desc" },
@@ -192,7 +217,13 @@ export const getDashboardSummary = async (req, res) => {
 			id: t.id,
 			title: t.title,
 			category: t.category?.name || "General",
-			date: t.date ? new Date(t.date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Today",
+			date: t.date
+				? new Date(t.date).toLocaleDateString("en-US", {
+						month: "short",
+						day: "numeric",
+						year: "numeric",
+					})
+				: "Today",
 			amount: t.type === "INCOME" ? Number(t.amount) : -Number(t.amount),
 			type: t.type,
 		}));

@@ -1,10 +1,5 @@
 import { prisma } from "../config/db.js";
 
-/**
- * @route   POST /budget
- * @desc    Set or update monthly budget
- * @access  Private
- */
 export const setBudget = async (req, res) => {
 	try {
 		const userId = req.user.id;
@@ -59,11 +54,6 @@ export const setBudget = async (req, res) => {
 	}
 };
 
-/**
- * @route   GET /budget
- * @desc    Get monthly budget
- * @access  Private
- */
 export const getBudget = async (req, res) => {
 	try {
 		const userId = req.user.id;

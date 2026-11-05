@@ -1,12 +1,9 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "scd_expense_tracker_secret_key_2026";
+const JWT_SECRET =
+	process.env.JWT_SECRET || "scd_expense_tracker_secret_key_2026";
 
-/**
- * Middleware to authenticate requests using JWT cookies or authorization header
- */
 export const authenticateToken = (req, res, next) => {
-	// Extract token from cookie first, fallback to Authorization header
 	let token = req.cookies?.token;
 
 	if (!token) {

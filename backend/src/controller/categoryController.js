@@ -10,11 +10,6 @@ const DEFAULT_SYSTEM_CATEGORIES = [
 	{ name: "Others", type: "EXPENSE" },
 ];
 
-/**
- * @route   POST /categories
- * @desc    Create a custom user category
- * @access  Private
- */
 export const createCategory = async (req, res) => {
 	try {
 		const userId = req.user.id;
@@ -29,9 +24,11 @@ export const createCategory = async (req, res) => {
 
 		const cleanName = name.trim();
 		const validTypes = ["EXPENSE", "INCOME"];
-		const categoryType = type && validTypes.includes(type.toUpperCase()) ? type.toUpperCase() : "EXPENSE";
+		const categoryType =
+			type && validTypes.includes(type.toUpperCase())
+				? type.toUpperCase()
+				: "EXPENSE";
 
-		// Check if category already exists for user
 		let existingCategory = await prisma.category.findFirst({
 			where: {
 				name: cleanName,
@@ -47,7 +44,6 @@ export const createCategory = async (req, res) => {
 			});
 		}
 
-		// Create category
 		const category = await prisma.category.create({
 			data: {
 				name: cleanName,
@@ -71,24 +67,19 @@ export const createCategory = async (req, res) => {
 	}
 };
 
-/**
- * @route   GET /categories
- * @desc    Get all categories available to user (user custom + defaults)
- * @access  Private
- */
 export const getCategories = async (req, res) => {
 	try {
 		const userId = req.user.id;
 
-		// Fetch user's custom categories from DB
 		const userCategories = await prisma.category.findMany({
 			where: { user_id: userId },
 			orderBy: { name: "asc" },
 		});
 
-		const userCategoryNames = new Set(userCategories.map((c) => c.name.toLowerCase()));
+		const userCategoryNames = new Set(
+			userCategories.map((c) => c.name.toLowerCase()),
+		);
 
-		// Combine with default categories not yet created by user
 		const combinedCategories = [...userCategories];
 
 		DEFAULT_SYSTEM_CATEGORIES.forEach((def, index) => {

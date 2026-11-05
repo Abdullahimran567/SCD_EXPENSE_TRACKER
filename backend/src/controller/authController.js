@@ -2,7 +2,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma } from "../config/db.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "scd_expense_tracker_secret_key_2026";
+const JWT_SECRET =
+	process.env.JWT_SECRET || "scd_expense_tracker_secret_key_2026";
 
 const getCookieOptions = () => ({
 	httpOnly: true,
@@ -11,16 +12,10 @@ const getCookieOptions = () => ({
 	maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 });
 
-/**
- * @route   POST /auth/signup (or /signup)
- * @desc    Register a new user & set HTTP-only cookie
- * @access  Public
- */
 export const signup = async (req, res) => {
 	try {
 		const { name, email, password } = req.body;
 
-		// Validation
 		if (!name || !email || !password) {
 			return res.status(400).json({
 				success: false,
@@ -37,7 +32,6 @@ export const signup = async (req, res) => {
 
 		const normalizedEmail = email.trim().toLowerCase();
 
-		// Check if user already exists
 		const existingUser = await prisma.user.findUnique({
 			where: { email: normalizedEmail },
 		});
@@ -49,11 +43,9 @@ export const signup = async (req, res) => {
 			});
 		}
 
-		// Hash password
 		const salt = await bcrypt.genSalt(10);
 		const hashedPassword = await bcrypt.hash(password, salt);
 
-		// Create user
 		const user = await prisma.user.create({
 			data: {
 				name: name.trim(),
@@ -62,14 +54,10 @@ export const signup = async (req, res) => {
 			},
 		});
 
-		// Generate JWT Token
-		const token = jwt.sign(
-			{ id: user.id, email: user.email },
-			JWT_SECRET,
-			{ expiresIn: "7d" }
-		);
+		const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+			expiresIn: "7d",
+		});
 
-		// Set HTTP-Only Cookie
 		res.cookie("token", token, getCookieOptions());
 
 		return res.status(201).json({
@@ -92,11 +80,6 @@ export const signup = async (req, res) => {
 	}
 };
 
-/**
- * @route   POST /auth/login (or /login)
- * @desc    Authenticate user & set HTTP-only cookie
- * @access  Public
- */
 export const login = async (req, res) => {
 	try {
 		const { email, password } = req.body;
@@ -111,7 +94,6 @@ export const login = async (req, res) => {
 
 		const normalizedEmail = email.trim().toLowerCase();
 
-		// Find user by email
 		const user = await prisma.user.findUnique({
 			where: { email: normalizedEmail },
 		});
@@ -123,7 +105,6 @@ export const login = async (req, res) => {
 			});
 		}
 
-		// Check password
 		const isMatch = await bcrypt.compare(password, user.password);
 		if (!isMatch) {
 			return res.status(401).json({
@@ -132,14 +113,10 @@ export const login = async (req, res) => {
 			});
 		}
 
-		// Generate JWT Token
-		const token = jwt.sign(
-			{ id: user.id, email: user.email },
-			JWT_SECRET,
-			{ expiresIn: "7d" }
-		);
+		const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+			expiresIn: "7d",
+		});
 
-		// Set HTTP-Only Cookie
 		res.cookie("token", token, getCookieOptions());
 
 		return res.status(200).json({
@@ -162,11 +139,6 @@ export const login = async (req, res) => {
 	}
 };
 
-/**
- * @route   POST /auth/logout (or /logout)
- * @desc    Clear HTTP-only auth cookie
- * @access  Public
- */
 export const logout = async (req, res) => {
 	res.clearCookie("token", {
 		httpOnly: true,
@@ -180,11 +152,6 @@ export const logout = async (req, res) => {
 	});
 };
 
-/**
- * @route   GET /auth/me (or /me)
- * @desc    Get logged in user profile from cookie token
- * @access  Private
- */
 export const getMe = async (req, res) => {
 	try {
 		const user = await prisma.user.findUnique({

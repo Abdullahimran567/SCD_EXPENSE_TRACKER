@@ -1,10 +1,5 @@
 import { prisma } from "../config/db.js";
 
-/**
- * @route   POST /transactions
- * @desc    Create a new transaction for logged-in user
- * @access  Private
- */
 export const createTransaction = async (req, res) => {
 	try {
 		const userId = req.user.id;
@@ -36,7 +31,6 @@ export const createTransaction = async (req, res) => {
 
 		const nameCategory = (categoryName || "General").trim();
 
-		// Find or create category safely
 		let category = await prisma.category.findFirst({
 			where: { name: nameCategory },
 		});
@@ -51,7 +45,6 @@ export const createTransaction = async (req, res) => {
 			});
 		}
 
-		// Create transaction
 		const transaction = await prisma.transaction.create({
 			data: {
 				title: title.trim(),
@@ -82,11 +75,6 @@ export const createTransaction = async (req, res) => {
 	}
 };
 
-/**
- * @route   GET /transactions
- * @desc    Get transactions for logged-in user
- * @access  Private
- */
 export const getTransactions = async (req, res) => {
 	try {
 		const userId = req.user.id;
@@ -126,11 +114,6 @@ export const getTransactions = async (req, res) => {
 	}
 };
 
-/**
- * @route   PUT /transactions/:id
- * @desc    Update an existing transaction
- * @access  Private
- */
 export const updateTransaction = async (req, res) => {
 	try {
 		const userId = req.user.id;
@@ -225,11 +208,6 @@ export const updateTransaction = async (req, res) => {
 	}
 };
 
-/**
- * @route   DELETE /transactions/:id
- * @desc    Delete a transaction
- * @access  Private
- */
 export const deleteTransaction = async (req, res) => {
 	try {
 		const userId = req.user.id;
