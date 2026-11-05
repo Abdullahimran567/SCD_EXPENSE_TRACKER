@@ -1,7 +1,6 @@
 import request from "supertest";
 import app from "../../src/app.js";
-import { resetTestDb } from "../setup.js";
-import { prisma } from "../../src/config/db.js";
+import { resetTestDb, closeTestDb } from "../setup.js";
 
 describe("ExpenseMate Regression Characterization Tests", () => {
 	beforeEach(async () => {
@@ -10,7 +9,7 @@ describe("ExpenseMate Regression Characterization Tests", () => {
 
 	afterAll(async () => {
 		await resetTestDb();
-		await prisma.$disconnect();
+		await closeTestDb();
 	});
 
 	describe("1. Auth: Signup, Login, Logout", () => {

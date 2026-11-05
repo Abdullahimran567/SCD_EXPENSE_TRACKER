@@ -16,7 +16,10 @@ export default function AddCategoryModal({ isOpen, onClose, onCategoryAdded }: A
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const backendUrl =
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    "http://localhost:5000";
 
   if (!isOpen) return null;
 

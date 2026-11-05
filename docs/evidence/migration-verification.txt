@@ -1,0 +1,32 @@
+Starting PostgreSQL to MongoDB Migration...
+Dry Run Mode: NO
+PostgreSQL source: postgresql://postgres:imran5701@localhost:5432/Expense_Tracker
+MongoDB target: mongodb://localhost:27017/Expense_Tracker
+
+[Read from PostgreSQL]
+- Users: 2
+- Categories: 4
+- Transactions: 4
+- Budgets: 2
+
+========================================
+        MIGRATION VERIFICATION REPORT    
+========================================
+Table / Collection Counts:
+  Users:        PG 2 vs Mongo 2
+  Categories:   PG 4 vs Mongo 4
+  Transactions: PG 4 vs Mongo 4
+  Budgets:      PG 2 vs Mongo 2
+
+Orphaned References:
+  Transactions with invalid user/category: 0
+  Budgets with invalid user: 0
+
+Per-User Totals Comparison:
+  User: john@example.com (PG ID: 5)
+    Income:  PG 4500.00 | Mongo 4500.00 [MATCH]
+    Expense: PG 175.50 | Mongo 175.50 [MATCH]
+  User: jane@example.com (PG ID: 6)
+    Income:  PG 1200.00 | Mongo 1200.00 [MATCH]
+    Expense: PG 950.00 | Mongo 950.00 [MATCH]
+========================================

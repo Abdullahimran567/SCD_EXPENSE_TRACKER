@@ -17,7 +17,10 @@ export default function Navbar({ onAddTransaction, onAddCategory, user }: Navbar
   const router = useRouter();
   const userName = user?.name || "User";
   const userEmail = user?.email || "";
-  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+  const backendUrl =
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    "http://localhost:5000";
 
   const handleLogout = async () => {
     try {

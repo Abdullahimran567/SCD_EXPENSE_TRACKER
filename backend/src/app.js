@@ -3,12 +3,14 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import router from "./routes/index.js";
 
+import config from "./config/index.js";
+
 const app = express();
 
 const allowedOrigins = [
   "http://localhost:3000",
   "http://127.0.0.1:3000",
-  process.env.FRONTEND_URL
+  config.frontendUrl,
 ].filter(Boolean);
 
 app.use(

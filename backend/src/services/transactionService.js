@@ -73,12 +73,11 @@ export const transactionService = {
 	},
 
 	async updateTransaction({ userId, transactionId, data }) {
-		const parsedId = parseInt(transactionId);
-		if (isNaN(parsedId)) {
+		if (!transactionId) {
 			throw new ValidationError("Invalid transaction ID");
 		}
 
-		const existingTransaction = await transactionRepository.findById(parsedId);
+		const existingTransaction = await transactionRepository.findById(transactionId);
 
 		if (!existingTransaction || existingTransaction.userId !== userId) {
 			throw new NotFoundError("Transaction not found");
@@ -127,7 +126,7 @@ export const transactionService = {
 		}
 
 		const updatedTransaction = await transactionRepository.update(
-			parsedId,
+			transactionId,
 			updateData,
 		);
 
@@ -135,18 +134,17 @@ export const transactionService = {
 	},
 
 	async deleteTransaction({ userId, transactionId }) {
-		const parsedId = parseInt(transactionId);
-		if (isNaN(parsedId)) {
+		if (!transactionId) {
 			throw new ValidationError("Invalid transaction ID");
 		}
 
-		const existingTransaction = await transactionRepository.findById(parsedId);
+		const existingTransaction = await transactionRepository.findById(transactionId);
 
 		if (!existingTransaction || existingTransaction.userId !== userId) {
 			throw new NotFoundError("Transaction not found");
 		}
 
-		await transactionRepository.delete(parsedId);
+		await transactionRepository.delete(transactionId);
 		return true;
 	},
 };

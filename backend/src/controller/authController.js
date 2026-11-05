@@ -1,12 +1,8 @@
 import { authService } from "../services/authService.js";
 import { AppError } from "../utils/errors.js";
+import config from "../config/index.js";
 
-const getCookieOptions = () => ({
-	httpOnly: true,
-	secure: process.env.NODE_ENV === "production",
-	sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
-	maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-});
+const getCookieOptions = () => config.cookieOptions;
 
 export const signup = async (req, res) => {
 	try {
@@ -66,9 +62,9 @@ export const login = async (req, res) => {
 
 export const logout = async (req, res) => {
 	res.clearCookie("token", {
-		httpOnly: true,
-		secure: process.env.NODE_ENV === "production",
-		sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+		httpOnly: config.cookieOptions.httpOnly,
+		secure: config.cookieOptions.secure,
+		sameSite: config.cookieOptions.sameSite,
 	});
 
 	return res.status(200).json({

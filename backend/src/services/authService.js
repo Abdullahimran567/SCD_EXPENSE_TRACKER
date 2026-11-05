@@ -1,10 +1,10 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import config from "../config/index.js";
 import { userRepository } from "../repositories/userRepository.js";
 import { ValidationError, AuthError, NotFoundError } from "../utils/errors.js";
 
-const JWT_SECRET =
-	process.env.JWT_SECRET || "scd_expense_tracker_secret_key_2026";
+const JWT_SECRET = config.jwtSecret;
 
 export const authService = {
 	async signup({ name, email, password }) {
@@ -24,7 +24,7 @@ export const authService = {
 			throw new ValidationError("User with this email already exists.");
 		}
 
-		const salt = await bcrypt.genSalt(10);
+		const salt = await bcrypt.genSalt(config.bcryptRounds);
 		const hashedPassword = await bcrypt.hash(password, salt);
 
 		const user = await userRepository.create({
@@ -34,7 +34,7 @@ export const authService = {
 		});
 
 		const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
-			expiresIn: "7d",
+			expiresIn: config.jwtExpiresIn,
 		});
 
 		return {
@@ -67,7 +67,7 @@ export const authService = {
 		}
 
 		const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
-			expiresIn: "7d",
+			expiresIn: config.jwtExpiresIn,
 		});
 
 		return {

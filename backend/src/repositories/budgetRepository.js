@@ -1,49 +1,59 @@
-import { prisma } from "../config/db.js";
+import mongoose from "mongoose";
+import { Budget } from "../models/Budget.js";
 
-const toPlainBudget = (budget) => {
-	if (!budget) return null;
+const toPlainBudget = (doc) => {
+	if (!doc) return null;
+	const obj = doc.toObject ? doc.toObject() : doc;
 	return {
-		id: budget.id,
-		amount: budget.amount,
-		month: budget.month,
-		year: budget.year,
-		userId: budget.userId,
+		id: obj._id.toString(),
+		amount: obj.amount ? obj.amount.toString() : "0.00",
+		month: obj.month,
+		year: obj.year,
+		userId: obj.userId.toString(),
 	};
 };
 
 export const budgetRepository = {
 	async upsert({ userId, month, year, amount }) {
-		const budget = await prisma.budget.upsert({
-			where: {
-				userId_month_year: {
+		const decimalAmount = mongoose.Types.Decimal128.fromString(
+			Number(amount).toFixed(2),
+		);
+
+		const updated = await Budget.findOneAndUpdate(
+			{ userId, month, year },
+			{
+				$set: {
+					amount: decimalAmount,
+				},
+				$setOnInsert: {
 					userId,
 					month,
 					year,
 				},
 			},
-			update: {
-				amount,
+			{
+				upsert: true,
+				returnDocument: "after",
 			},
-			create: {
-				userId,
-				month,
-				year,
-				amount,
-			},
-		});
-		return toPlainBudget(budget);
+		);
+
+		return toPlainBudget(updated);
 	},
 
 	async findByUserMonthYear(userId, month, year) {
-		const budget = await prisma.budget.findUnique({
-			where: {
-				userId_month_year: {
-					userId,
-					month,
-					year,
-				},
-			},
-		});
-		return toPlainBudget(budget);
+		const budget = await Budget.findOne({
+			userId,
+			month,
+			year,
+		}).lean();
+
+		if (!budget) return null;
+		return {
+			id: budget._id.toString(),
+			amount: budget.amount ? budget.amount.toString() : "0.00",
+			month: budget.month,
+			year: budget.year,
+			userId: budget.userId.toString(),
+		};
 	},
 };

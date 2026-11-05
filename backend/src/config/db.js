@@ -1,14 +1,23 @@
-import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import mongoose from "mongoose";
+import config from "./index.js";
 
-const connectionString =
-	process.env.DATABASE_URL_TEST || process.env.DATABASE_URL;
+const uri =
+	process.env.MONGODB_URI_TEST ||
+	(process.env.NODE_ENV === "test" && process.env.MONGODB_URI
+		? process.env.MONGODB_URI
+		: config.mongodbUri);
 
-const adapter = new PrismaPg({
-	connectionString,
-});
+export const connectDB = async () => {
+	if (mongoose.connection.readyState === 1) {
+		return mongoose.connection;
+	}
+	return mongoose.connect(uri);
+};
 
-export const prisma = new PrismaClient({
-	adapter,
-});
+export const disconnectDB = async () => {
+	if (mongoose.connection.readyState !== 0) {
+		await mongoose.disconnect();
+	}
+};
+
+export default mongoose;

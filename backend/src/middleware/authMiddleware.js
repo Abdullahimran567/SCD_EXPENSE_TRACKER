@@ -1,7 +1,7 @@
 import jwt from "jsonwebtoken";
+import config from "../config/index.js";
 
-const JWT_SECRET =
-	process.env.JWT_SECRET || "scd_expense_tracker_secret_key_2026";
+const JWT_SECRET = config.jwtSecret;
 
 export const authenticateToken = (req, res, next) => {
 	let token = req.cookies?.token;

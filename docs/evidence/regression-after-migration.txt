@@ -1,0 +1,33 @@
+> backend@1.0.0 test:regression
+> dotenv -e .env.test -- cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand tests/regression/
+
+(node:26092) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS tests/regression/regression.test.js
+  ExpenseMate Regression Characterization Tests
+    1. Auth: Signup, Login, Logout
+      √ registers a new user and sets HttpOnly cookie (154 ms)
+      √ logs in with valid credentials, sets HttpOnly cookie, and gets /me (172 ms)
+      √ clears token cookie on logout (6 ms)
+    2. Categories: List, Create, Duplicate
+      √ lists default categories when none created yet (85 ms)
+      √ creates a new custom category (81 ms)
+      √ handles duplicate category creation returning 200 and existing category (83 ms)
+    3. Transactions: Create, List (pagination), Partial Update, Delete
+      √ creates a transaction and retrieves it in paginated list (98 ms)
+      √ partially updates a transaction (93 ms)
+      √ deletes a transaction (92 ms)
+    4. Ownership Isolation Between Two Users
+      √ prevents Bob from viewing Alice's transactions in list (164 ms)
+      √ prevents Bob from updating Alice's transaction (160 ms)
+      √ prevents Bob from deleting Alice's transaction (165 ms)
+    5. Budget: Set and Upsert
+      √ sets a new monthly budget and updates it on subsequent call (upsert) (95 ms)
+    6. Dashboard Summary
+      √ returns accurate dashboard summary structure and 6-month chart data (119 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       14 passed, 14 total
+Snapshots:   0 total
+Time:        2.534 s, estimated 4 s
+Ran all test suites matching tests/regression/.
